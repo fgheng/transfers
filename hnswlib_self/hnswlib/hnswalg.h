@@ -838,12 +838,24 @@ class HierarchicalNSW : public AlgorithmInterface<dist_t> {
     // 仅测试召回功能，不涉及内存优化
     void mergeIndex(const std::vector<HierarchicalNSW*>& shards) {
         size_t total_elements = 0;
-        // 复制 level0
+        // 复制 shards 的 level0到 data_level0_memory_
+        // 邻居 id 还需要进行更改
         for (const auto& shard : shards) {
-            size_t shard_level0_size = shard->get_data_level0_memory_size();
+            size_t shard_elements = shard->max_elements_;
+            size_t shard_level0_size = size_data_per_element_ * shard_elements;  // 索引的 shard_level0_size得跟现在保持一致 
+                                                                                 // 当然所有索引的也必须保持一致，否则报错，
+                                                                                 // 因此需要检查，但是因为测试，这里暂时不做检查
+
             char* shard_level0_memory = shard->get_data_level0_memory();
-            memcpy(data_level0_memory_ + total_elements, shard_level0_memory, shard_level0_size);
-            total_elements += shard->max_elements_;
+            char* cur_data_level0_memory = data_level0_memory_ + total_elements*size_data_per_element_;
+            memcpy(cur_data_level0_memory, shard_level0_memory, shard_level0_size);
+
+            // 修改当前索引邻居 id
+            for (int j = 0; j < shard_elements; j++) {
+                uint32_t neighbors_num = *(uint32_t*)(cur_data_level0_memory+j*size_data_per_element_);
+            }
+
+            total_elements += shard_elements;
         }
 
         std::vector<std::pair<labeltype, uint32_t>> node_shard;      // 记录所有外部 id 所属的 shard
