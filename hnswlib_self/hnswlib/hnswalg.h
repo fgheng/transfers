@@ -47,6 +47,7 @@ class HierarchicalNSW : public AlgorithmInterface<dist_t> {
     size_t size_links_level0_{0};
     size_t offsetData_{0}, offsetLevel0_{0}, label_offset_{ 0 };
 
+    size_t data_level0_memory_size_{0};
     char *data_level0_memory_{nullptr};
     char **linkLists_{nullptr};
     std::vector<int> element_levels_;  // keeps level of each element
@@ -123,7 +124,8 @@ class HierarchicalNSW : public AlgorithmInterface<dist_t> {
         label_offset_ = size_links_level0_ + data_size_;
         offsetLevel0_ = 0;
 
-        data_level0_memory_ = (char *) malloc(max_elements_ * size_data_per_element_);
+        data_level0_memory_size_ = max_elements_ * size_data_per_element_;
+        data_level0_memory_ = (char *) malloc(data_level0_memory_size_);
         if (data_level0_memory_ == nullptr)
             throw std::runtime_error("Not enough memory");
 
@@ -196,6 +198,15 @@ class HierarchicalNSW : public AlgorithmInterface<dist_t> {
 
     inline labeltype *getExternalLabeLp(tableint internal_id) const {
         return (labeltype *) (data_level0_memory_ + internal_id * size_data_per_element_ + label_offset_);
+    }
+
+
+    size_t get_data_level0_memory_size() {
+        return data_level0_memory_size_;
+    }
+
+    char* get_data_level0_memory() {
+        return data_level0_memory_;
     }
 
 
@@ -827,13 +838,18 @@ class HierarchicalNSW : public AlgorithmInterface<dist_t> {
     // 仅测试召回功能，不涉及内存优化
     void mergeIndex(const std::vector<HierarchicalNSW*>& shards) {
         size_t total_elements = 0;
+        // 复制 level0
         for (const auto& shard : shards) {
+            size_t shard_level0_size = shard->get_data_level0_memory_size();
+            char* shard_level0_memory = shard->get_data_level0_memory();
+            memcpy(data_level0_memory_ + total_elements, shard_level0_memory, shard_level0_size);
             total_elements += shard->max_elements_;
         }
 
         std::vector<std::pair<labeltype, uint32_t>> node_shard;      // 记录所有外部 id 所属的 shard
         std::vector<std::vector<labeltype>> idmaps(shards.size());  // 记录每个 shard 所属的 id
         for (int shard_id = 0; shard_id < shards.size(); shard_id++) {
+
             for (int shard_internal_label = 0; shard_internal_label < shards[shard_id]->max_elements_; shard_internal_label++) {
                 labeltype external_label = shards[shard_id]->getExternalLabel(shard_internal_label);
                 idmaps[shard_id].push_back(external_label);
