@@ -937,7 +937,7 @@ class HierarchicalNSW : public AlgorithmInterface<dist_t> {
         std::vector<std::vector<labeltype>> merge_neighbours(cur_max_level+1);
         for (int level = 0; level <= cur_max_level; level++) {
             auto& merge_neighbours_level  = merge_neighbours[level];
-            auto& edges_external_neighbours_level = graph[0].external_neighbours_[level];
+            auto edges_external_neighbours_level = graph[0].external_neighbours_[level];
             merge_neighbours_level.insert(merge_neighbours_level.end(), edges_external_neighbours_level.begin(), edges_external_neighbours_level.end());
         }
 
@@ -954,7 +954,7 @@ class HierarchicalNSW : public AlgorithmInterface<dist_t> {
 
                 for (int level = 0; level <= cur_level; level++) {
                     auto& merge_neighbours_level  = merge_neighbours[level];
-                    auto& edges_external_neighbours_level = graph[i].external_neighbours_[level];
+                    auto edges_external_neighbours_level = graph[i].external_neighbours_[level];
                     if (&merge_neighbours_level == &edges_external_neighbours_level) {
                         std::cout << "error: same level linklist" << std::endl;
                     }
@@ -985,7 +985,7 @@ class HierarchicalNSW : public AlgorithmInterface<dist_t> {
                 merge_neighbours.resize(cur_max_level+1);
                 for (int level = 0; level <= cur_max_level; level++) {
                     auto& merge_neighbours_level  = merge_neighbours[level];
-                    auto& edges_external_neighbours_level = graph[i].external_neighbours_[level];
+                    auto edges_external_neighbours_level = graph[i].external_neighbours_[level];
                     merge_neighbours_level.insert(merge_neighbours_level.end(), edges_external_neighbours_level.begin(), edges_external_neighbours_level.end());
                 }
 
