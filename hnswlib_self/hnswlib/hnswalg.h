@@ -985,7 +985,7 @@ class HierarchicalNSW : public AlgorithmInterface<dist_t> {
                 uint32_t shard_id = graph[i].shard_id_;
                 auto& shard_index = shard_indexes[shard_id];
                 memcpy(getDataByInternalId(current_internal_label), 
-                    shard_index->getDataByLabel(current_external_label).data(), data_size_);  // 复制向量
+                    shard_index->template getDataByLabel<float>(current_external_label).data(), data_size_);  // 复制向量
                 memcpy(getExternalLabeLp(current_internal_label),
                     &current_external_label, sizeof(labeltype)); // 复制外部id
                 external_label_to_internal_id[current_external_label] = current_internal_label;  // 记录外部id在当前索引中的位置 
