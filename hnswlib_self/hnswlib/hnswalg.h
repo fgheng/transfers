@@ -863,6 +863,7 @@ class HierarchicalNSW : public AlgorithmInterface<dist_t> {
             std::vector<std::vector<tableint>> internal_neighbours_;
         };
 
+        std::cout << "get all edges from shards" << std::endl;
         // 拿到所有点每层的边关系
         std::vector<struct node> graph;
         for (int shard_id = 0; shard_id < shard_indexes.size(); shard_id++) {
@@ -900,6 +901,8 @@ class HierarchicalNSW : public AlgorithmInterface<dist_t> {
             }
         }
 
+
+        std::cout << "resort graph nodes" << std::endl;
         // 重排，将一样的 external_label 的边放在一起 
         std::sort(graph.begin(), graph.end(), [](const auto &left, const auto &right) {
             return left.external_label_ < right.external_label_ || 
@@ -914,6 +917,7 @@ class HierarchicalNSW : public AlgorithmInterface<dist_t> {
             throw std::runtime_error("No edges to merge");
         }
 
+        std::cout << "merge edges" << std::endl;
         // 合并边
         std::vector<struct node> merge_graph;  // 存储合并后的图
         std::unordered_map<labeltype, tableint> external_label_to_internal_id;  // 记录填充后的外部数据在当前索引中的位置
@@ -937,6 +941,7 @@ class HierarchicalNSW : public AlgorithmInterface<dist_t> {
             merge_neighbours_level.insert(merge_neighbours_level.end(), edges_external_neighbours_level.begin(), edges_external_neighbours_level.end());
         }
 
+        std::cout << "merge all edges" << std::endl;
         // 遍历所有的边，合并各个 level 的邻居
         for (int i = 1; i < graph.size(); i++) {
             if (graph[i].external_label_ == current_external_label) {
@@ -1004,6 +1009,8 @@ class HierarchicalNSW : public AlgorithmInterface<dist_t> {
             }
         }
 
+
+        std::cout << "map internal id" << std::endl;
         // 映射内部 id
         for (int i = 0; i < merge_graph.size(); i++) {
             auto& merge_edge = merge_graph[i];
@@ -1020,6 +1027,7 @@ class HierarchicalNSW : public AlgorithmInterface<dist_t> {
             }
         }
 
+        std::cout << "fill edges" << std::endl;
         // 填充邻居
         std::random_device rng;
         std::mt19937 urng(rng());
