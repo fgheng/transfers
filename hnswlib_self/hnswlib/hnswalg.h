@@ -1024,7 +1024,7 @@ class HierarchicalNSW : public AlgorithmInterface<dist_t> {
         size_links_per_element_ = maxM0_ * sizeof(tableint) + sizeof(linklistsizeint);  // 高层的 level 也变成 2*M 实时看
 
         for (int i = 0; i < merge_graph.size(); i++) {
-            auto internal_id = merge_graph[i].internal_id;
+            auto internal_id = merge_graph[i].internal_id_;
             auto cur_max_level = merge_graph[i].max_level_;
             element_levels_[i] = cur_max_level;
 
