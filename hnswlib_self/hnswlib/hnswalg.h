@@ -834,47 +834,145 @@ class HierarchicalNSW : public AlgorithmInterface<dist_t> {
         return;
     }
 
+    int getElementLevel(tableint internal_id) {
+        return element_levels_[internal_id];
+    }
+
+    void getExternalNeighbours(tableint internal_id, std::vector<labeltype>& external_neighbours) const {
+        linklistsizeint *ll_cur = get_linklist0(internal_id);
+        tableint *data = (tableint *) (ll_cur + 1);
+
+        for (int i = 0; i < *ll_cur; i++) {
+            tableint internal_id_neighbour = *(data+i);
+
+            labeltype external_id = getExternalLabel(internal_id_neighbour);
+            external_neighbours.push_back(external_id);
+        }
+    }
+
     // 索引合并测试
     // 仅测试召回功能，不涉及内存优化
-    void mergeIndex(const std::vector<HierarchicalNSW*>& shards) {
-        size_t total_elements = 0;
-        // 复制 shards 的 level0到 data_level0_memory_
-        // 邻居 id 还需要进行更改
-        for (const auto& shard : shards) {
-            size_t shard_elements = shard->max_elements_;
-            size_t shard_level0_size = size_data_per_element_ * shard_elements;  // 索引的 shard_level0_size得跟现在保持一致 
-                                                                                 // 当然所有索引的也必须保持一致，否则报错，
-                                                                                 // 因此需要检查，但是因为测试，这里暂时不做检查
+    void mergeIndex(const std::vector<HierarchicalNSW*>& shard_indexes) {
+        struct edge {
+            labeltype external_label_;
+            tableint internal_id_;
+            uint32_t shard_id_;
+            int max_level_;
+            std::vector<std::vector<labeltype>> external_neighbours_; // 记录每个 level 的邻居
+            std::vector<std::vector<tableint>> internal_neighbours_;
+        };
 
-            char* shard_level0_memory = shard->get_data_level0_memory();
-            char* cur_data_level0_memory = data_level0_memory_ + total_elements*size_data_per_element_;
-            memcpy(cur_data_level0_memory, shard_level0_memory, shard_level0_size);
+        std::vector<edge> edges;
+        for (int shard_id = 0; shard_id < shard_indexes.size(); shard_id++) {
+            size_t shard_max_elements = shard_indexes[shard_id]->max_elements_;
+            auto& index = shard_indexes[shard_id];
 
-            // 修改当前索引邻居 id
-            for (int j = 0; j < shard_elements; j++) {
-                uint32_t neighbors_num = *(uint32_t*)(cur_data_level0_memory+j*size_data_per_element_);
+            for (int shard_internal_label = 0; shard_internal_label < shard_max_elements; shard_internal_label++) {
+                int cur_level = index->getElementLevel(shard_internal_label);
+
+                edge edge;
+                edge.max_level_ = cur_level;
+                edge.external_label_ = index->getExternalLabel(shard_internal_label);
+                edge.shard_id_ = shard_id;
+
+                for (int level = 0; level <= cur_level; level++) {
+                    std::vector<labeltype> neighbours;
+                    if (level == 0) {
+                        index->getExternalNeighbours(shard_internal_label, neighbours);
+                    } else {
+                        linklistsizeint* ll_cur = index->get_linklist(shard_internal_label, level);
+                        tableint* data = (tableint*)(ll_cur+1);
+
+                        // 遍历当前层的邻居
+                        for (int i = 0; i < *ll_cur; i++) {
+                            tableint internal_id_neighbour = *(data+i);
+                            labeltype external_id = index->getExternalLabel(internal_id_neighbour);
+                            neighbours.push_back(external_id);
+                        }
+                    }
+                    edge.external_neighbours_.push_back(neighbours);
+                }
+
+                edges.push_back(edge);
             }
-
-            total_elements += shard_elements;
         }
 
-        std::vector<std::pair<labeltype, uint32_t>> node_shard;      // 记录所有外部 id 所属的 shard
-        std::vector<std::vector<labeltype>> idmaps(shards.size());  // 记录每个 shard 所属的 id
-        for (int shard_id = 0; shard_id < shards.size(); shard_id++) {
-
-            for (int shard_internal_label = 0; shard_internal_label < shards[shard_id]->max_elements_; shard_internal_label++) {
-                labeltype external_label = shards[shard_id]->getExternalLabel(shard_internal_label);
-                idmaps[shard_id].push_back(external_label);
-                node_shard.push_back(std::make_pair(external_label, shard_id));
-            }
-        }
-
-        // 根据external_label shard_id 排序
-        // (0, 1), (0, 8), (1, 3), (1, 7), (2, 8), (2, 6) ...
-        std::sort(node_shard.begin(), node_shard.end(), [](const auto &left, const auto &right) {
-            return left.first < right.first || (left.first == right.first && left.second < right.second);
+        std::sort(edges.begin(), edges.end(), [](const auto &left, const auto &right) {
+            return left.external_label_ < right.external_label_ || 
+                    (left.external_label_ == right.external_label_ && left.shard_id_ < right.shard_id_);
         });
 
+        std::cout << "edges size: " << edges.size() << std::endl;
+
+        // 遍历所有的 external_label，将数据复制到当前索引中
+        // 主要存储向量和外部标签，实际的邻居数量以及实际的邻居需要合并后再填充
+        if (edges.empty()) {
+            throw std::runtime_error("No edges to merge");
+        }
+
+        std::vector<edge> new_edges;
+        std::unordered_map<labeltype, tableint> external_label_to_internal_id;  // 记录填充后的外部数据在当前索引中的位置
+        labeltype current_external_label = edges[0].label;
+        tableint current_internal_id = 0;
+
+        memcpy(getDataByInternalId(current_internal_id), 
+               shard_indexes[edges[0].shard_id]->getDataByLabel(current_external_label).data(), data_size_);  // 复制向量
+        memcpy(getExternalLabeLp(current_internal_id),
+               &current_external_label, sizeof(labeltype)); // 复制外部id
+        external_label_to_internal_id[current_external_label] = current_internal_id;  // 记录外部id在当前索引中的位置 
+
+        std::vector<labeltype> merge_neighbours;
+        merge_neighbours.insert(merge_neighbours.end(), edges[0].external_neighbours.begin(), edges[0].external_neighbours.end());
+
+        // 遍历所有的边，将数据添加到 level0，同时进行边合并
+        for (int i = 1; i < edges.size(); i++) {
+            if (edges[i].external_label == current_external_label) {
+                merge_neighbours.insert(merge_neighbours.end(), 
+                        edges[i].external_neighbours.begin(), 
+                        edges[i].external_neighbours.end());
+                continue;
+            } else {
+                edge new_edge;
+                new_edge.external_label_ = current_external_label;
+                new_edge.internal_id_ = current_internal_id;
+                std::sort(merge_neighbours.begin(), merge_neighbours.end());
+                auto it = std::unique(merge_neighbours.begin(), merge_neighbours.end());
+                merge_neighbours.erase(it, merge_neighbours.end());
+                new_edge.external_neighbours_ = merge_neighbours;
+                merge_neighbours.clear();
+                new_edges.push_back(new_edge);
+
+                current_external_label = edges[i].external_label;
+                current_internal_id++;
+
+                uint32_t shard_id = edges[i].shard_id;
+                memcpy(getDataByInternalId(current_internal_id), 
+                    shard_indexes[shard_id]->getDataByLabel(current_external_label).data(), data_size_);  // 复制向量
+                memcpy(getExternalLabeLp(current_internal_id),
+                    &current_external_label, sizeof(labeltype)); // 复制外部id
+                external_label_to_internal_id[current_external_label] = current_internal_id;  // 记录外部id在当前索引中的位置 
+            }
+        }
+
+        std::cout << "new edges size: " << new_edges.size() << std::endl;
+        std::random_device rng;
+        std::mt19937 urng(rng());
+        for (int i = 0; i < new_edges.size(); i++) {
+            auto& neighbours = new_edges[i].external_neighbours;
+            std::shuffle(neighbours.begin(), neighbours.end(), urng);
+            auto nnbrs = (uint32_t)(std::min)(neighbours.size(), maxM0_);
+            neighbours.resize(nnbrs);  // level0上最多只留下 maxM0 个邻居
+
+            auto internal_id = new_edges[i].internal_id;
+            linklistsizeint* ll_cur = get_linklist0(internal_id);
+            setListCount(ll_cur, nnbrs);
+
+            tableint* data = (tableint*)(ll_cur+1);
+            for (int i = 0; i < nnbrs; i++) {
+                tableint internal_id = external_label_to_internal_id[neighbours[i]];
+                data[i] = internal_id;
+            }
+        }
     }
 
 
