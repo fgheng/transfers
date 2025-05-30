@@ -992,7 +992,7 @@ class HierarchicalNSW : public AlgorithmInterface<dist_t> {
             }
         }
 
-        std::cout << "new edges size: " << merge_graph.size() << std::endl;
+        std::cout << "merge graph size: " << merge_graph.size() << std::endl;
 
 
         // 检查 max_level跟实际的邻居数量是否一致 
