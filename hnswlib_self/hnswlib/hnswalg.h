@@ -999,7 +999,8 @@ class HierarchicalNSW : public AlgorithmInterface<dist_t> {
         // 检查 max_level跟实际的邻居数量是否一致 
         for (int i = 0; i < merge_graph.size(); i++) {
             if (merge_graph[i].max_level_ != merge_graph[i].external_neighbours_.size() - 1) {
-                throw std::runtime_error(std::string("The edges are not consistent") + std::to_string(i) + std::string(" max_level: ")) + std::to_string(merge_graph[i].max_level_) + std::string(" neighbours size: ") + std::to_string(merge_graph[i].external_neighbours_.size());
+                std::cout << "The edges are not consistent: max_level: " << merge_graph[i].max_level_ << " neighbours size: " << merge_graph[i].external_neighbours_.size() << std::endl;
+                throw std::runtime_error("The edges are not consistent");
             }
         }
 
