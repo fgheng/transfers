@@ -924,7 +924,7 @@ class HierarchicalNSW : public AlgorithmInterface<dist_t> {
         int cur_max_level = graph[0].max_level_;
 
         memcpy(getDataByInternalId(current_internal_label), 
-               shard_index->getDataByLabel(current_external_label).data(), data_size_);  // 复制向量
+               shard_index->getDataByLabelFloat(current_external_label).data(), data_size_);  // 复制向量
         memcpy(getExternalLabeLp(current_internal_label),
                &current_external_label, sizeof(labeltype));                     // 复制外部id
         external_label_to_internal_id[current_external_label] = current_internal_label;    // 记录外部id在当前索引中的位置 
@@ -985,7 +985,8 @@ class HierarchicalNSW : public AlgorithmInterface<dist_t> {
                 uint32_t shard_id = graph[i].shard_id_;
                 auto& shard_index = shard_indexes[shard_id];
                 memcpy(getDataByInternalId(current_internal_label), 
-                    shard_index->template getDataByLabel<float>(current_external_label).data(), data_size_);  // 复制向量
+                    // shard_index->template getDataByLabel<float>(current_external_label).data(), data_size_);  // 复制向量
+                    shard_index->getDataByLabelFloat(current_external_label).data(), data_size_);  // 复制向量
                 memcpy(getExternalLabeLp(current_internal_label),
                     &current_external_label, sizeof(labeltype)); // 复制外部id
                 external_label_to_internal_id[current_external_label] = current_internal_label;  // 记录外部id在当前索引中的位置 
@@ -1075,6 +1076,29 @@ class HierarchicalNSW : public AlgorithmInterface<dist_t> {
         size_t dim = *((size_t *) dist_func_param_);
         std::vector<data_t> data;
         data_t* data_ptr = (data_t*) data_ptrv;
+        for (size_t i = 0; i < dim; i++) {
+            data.push_back(*data_ptr);
+            data_ptr += 1;
+        }
+        return data;
+    }
+
+    std::vector<float> getDataByLabelFloat(labeltype label) const {
+        // lock all operations with element by label
+        std::unique_lock <std::mutex> lock_label(getLabelOpMutex(label));
+        
+        std::unique_lock <std::mutex> lock_table(label_lookup_lock);
+        auto search = label_lookup_.find(label);
+        if (search == label_lookup_.end() || isMarkedDeleted(search->second)) {
+            throw std::runtime_error("Label not found");
+        }
+        tableint internalId = search->second;
+        lock_table.unlock();
+
+        char* data_ptrv = getDataByInternalId(internalId);
+        size_t dim = *((size_t *) dist_func_param_);
+        std::vector<float> data;
+        float* data_ptr = (float*) data_ptrv;
         for (size_t i = 0; i < dim; i++) {
             data.push_back(*data_ptr);
             data_ptr += 1;
