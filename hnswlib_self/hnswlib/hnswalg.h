@@ -537,6 +537,7 @@ class HierarchicalNSW : public AlgorithmInterface<dist_t> {
         {
             // lock only during the update
             // because during the addition the lock for cur_c is already acquired
+            std::unique_lock <std::mutex> lock(link_list_locks_[cur_c], std::defer_lock);
             if (isUpdate) {
                 lock.lock();
             }
