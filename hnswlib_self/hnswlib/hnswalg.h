@@ -1043,7 +1043,7 @@ class HierarchicalNSW : public AlgorithmInterface<dist_t> {
                     }
                 } else {
                     if (linkLists_[internal_id] == nullptr) {
-                        linkLists_[internal_id] = (linklistsizeint*) malloc(size_links_per_element_*cur_max_level+1);
+                        linkLists_[internal_id] = (char*)malloc(size_links_per_element_*cur_max_level+1);
                     }
 
                     linklistsizeint* ll_cur = get_linklist(internal_id, level);
