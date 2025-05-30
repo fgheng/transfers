@@ -855,7 +855,7 @@ class HierarchicalNSW : public AlgorithmInterface<dist_t> {
     void mergeIndex(const std::vector<HierarchicalNSW*>& shard_indexes) {
         struct edge {
             labeltype external_label_;
-            tableint internal_id_;
+            tableint internal_label_;
             uint32_t shard_id_;
             int max_level_;
             std::vector<std::vector<labeltype>> external_neighbours_; // 记录每个 level 的邻居
@@ -873,6 +873,7 @@ class HierarchicalNSW : public AlgorithmInterface<dist_t> {
                 edge edge;
                 edge.max_level_ = cur_level;
                 edge.external_label_ = index->getExternalLabel(shard_internal_label);
+                edge.internal_label_ = shard_internal_label;
                 edge.shard_id_ = shard_id;
 
                 for (int level = 0; level <= cur_level; level++) {
@@ -897,6 +898,7 @@ class HierarchicalNSW : public AlgorithmInterface<dist_t> {
             }
         }
 
+        // 将 external_label_一样的放到一起
         std::sort(edges.begin(), edges.end(), [](const auto &left, const auto &right) {
             return left.external_label_ < right.external_label_ || 
                     (left.external_label_ == right.external_label_ && left.shard_id_ < right.shard_id_);
@@ -910,67 +912,149 @@ class HierarchicalNSW : public AlgorithmInterface<dist_t> {
             throw std::runtime_error("No edges to merge");
         }
 
-        std::vector<edge> new_edges;
+        std::vector<edge> merge_edges;  // 存储合并后的图
         std::unordered_map<labeltype, tableint> external_label_to_internal_id;  // 记录填充后的外部数据在当前索引中的位置
-        labeltype current_external_label = edges[0].label;
-        tableint current_internal_id = 0;
+        labeltype current_external_label = edges[0].external_label_;
+        tableint current_internal_label = 0;
+        int shard_id = edges[0].shard_id_;
+        auto& shard_index = shard_indexes[shard_id];
+        int cur_max_level = edges[0].max_level_;
 
-        memcpy(getDataByInternalId(current_internal_id), 
-               shard_indexes[edges[0].shard_id]->getDataByLabel(current_external_label).data(), data_size_);  // 复制向量
-        memcpy(getExternalLabeLp(current_internal_id),
-               &current_external_label, sizeof(labeltype)); // 复制外部id
-        external_label_to_internal_id[current_external_label] = current_internal_id;  // 记录外部id在当前索引中的位置 
+        memcpy(getDataByInternalId(current_internal_label), 
+               shard_index->getDataByLabel(current_external_label).data(), data_size_);  // 复制向量
+        memcpy(getExternalLabeLp(current_internal_label),
+               &current_external_label, sizeof(labeltype));                     // 复制外部id
+        external_label_to_internal_id[current_external_label] = current_internal_label;    // 记录外部id在当前索引中的位置 
 
-        std::vector<labeltype> merge_neighbours;
-        merge_neighbours.insert(merge_neighbours.end(), edges[0].external_neighbours.begin(), edges[0].external_neighbours.end());
+        // 合并 0 号点
+        std::vector<std::vector<labeltype>> merge_neighbours(cur_max_level);
+        for (int level = 0; level < cur_max_level; level++) {
+            auto& merge_neighbours_level  = merge_neighbours[level];
+            auto& edges_external_neighbours_level = edges[0].external_neighbours_[level];
+            merge_neighbours_level.insert(merge_neighbours_level.end(), edges_external_neighbours_level.begin(), edges_external_neighbours_level.end());
+        }
 
-        // 遍历所有的边，将数据添加到 level0，同时进行边合并
+        // 遍历所有的边，合并各个 level 的邻居
         for (int i = 1; i < edges.size(); i++) {
             if (edges[i].external_label == current_external_label) {
-                merge_neighbours.insert(merge_neighbours.end(), 
-                        edges[i].external_neighbours.begin(), 
-                        edges[i].external_neighbours.end());
+                // cur_max_level 表示相同 external_label 的边中，最高的 level 
+                auto cur_level = edges[i].max_level;
+                if (cur_max_level < cur_level) {
+                    cur_max_level = cur_level;
+                    merge_neighbours.reserve(cur_max_level);
+                }
+
+                for (int level = 0; level <= cur_level; level++) {
+                    auto& merge_neighbours_level  = merge_neighbours[level];
+                    auto& edges_external_neighbours_level = edges[i].external_neighbours_[level];
+                    merge_neighbours_level.insert(merge_neighbours_level.end(), edges_external_neighbours_level.begin(), edges_external_neighbours_level.end());
+                }
                 continue;
             } else {
+
                 edge new_edge;
                 new_edge.external_label_ = current_external_label;
-                new_edge.internal_id_ = current_internal_id;
-                std::sort(merge_neighbours.begin(), merge_neighbours.end());
-                auto it = std::unique(merge_neighbours.begin(), merge_neighbours.end());
-                merge_neighbours.erase(it, merge_neighbours.end());
+                new_edge.internal_label_ = current_internal_label;
+                new_edge.max_level_ = cur_max_level;
+
+                for (int level = 0; level <= cur_max_level; level++) {
+                    auto& merge_neighbours_level = merge_neighbours[level];
+                    std::sort(merge_neighbours_level.begin(), merge_neighbours_level.end());
+                    auto it = std::unique(merge_neighbours_level.begin(), merge_neighbours_level.end());
+                    merge_neighbours_level.erase(it, merge_neighbours_level.end());
+                }
                 new_edge.external_neighbours_ = merge_neighbours;
+                merge_edges.push_back(new_edge);
+
+                // 存储当前这个点的各级邻居，避免跳过
                 merge_neighbours.clear();
-                new_edges.push_back(new_edge);
+                current_external_label = edges[i].external_label_;
+                current_internal_label++;
+                cur_max_level = edges[i].max_level_;
+                merge_neighbours.resize(cur_max_level);
+                for (int level = 0; level <= cur_max_level; level++) {
+                    auto& merge_neighbours_level  = merge_neighbours[level];
+                    auto& edges_external_neighbours_level = edges[i].external_neighbours_[level];
+                    merge_neighbours_level.insert(merge_neighbours_level.end(), edges_external_neighbours_level.begin(), edges_external_neighbours_level.end());
+                }
 
-                current_external_label = edges[i].external_label;
-                current_internal_id++;
-
-                uint32_t shard_id = edges[i].shard_id;
-                memcpy(getDataByInternalId(current_internal_id), 
-                    shard_indexes[shard_id]->getDataByLabel(current_external_label).data(), data_size_);  // 复制向量
-                memcpy(getExternalLabeLp(current_internal_id),
+                // 将数据 copy 到 level0
+                uint32_t shard_id = edges[i].shard_id_;
+                auto& shard_index = shard_indexes[shard_id];
+                memcpy(getDataByInternalId(current_internal_label), 
+                    shard_index->getDataByLabel(current_external_label).data(), data_size_);  // 复制向量
+                memcpy(getExternalLabeLp(current_internal_label),
                     &current_external_label, sizeof(labeltype)); // 复制外部id
-                external_label_to_internal_id[current_external_label] = current_internal_id;  // 记录外部id在当前索引中的位置 
+                external_label_to_internal_id[current_external_label] = current_internal_label;  // 记录外部id在当前索引中的位置 
             }
         }
 
-        std::cout << "new edges size: " << new_edges.size() << std::endl;
+        std::cout << "new edges size: " << merge_edges.size() << std::endl;
+
+
+        // 检查 max_level跟实际的邻居数量是否一致 
+        for (int i = 0; i < merge_edges.size(); i++) {
+            if (merge_edges[i].max_level_ != merge_edges[i].external_neighbours_.size() - 1) {
+                throw std::runtime_error(std::string("The edges are not consistent") + std::to_string(i) + std::string(" max_level: ")) + std::to_string(merge_edges[i].max_level_) + std::string(" neighbours size: ")) + std::to_string(merge_edges[i].external_neighbours_.size());
+            }
+        }
+
+        // 映射内部 id
+        for (int i = 0; i < merge_edges.size(); i++) {
+            auto& merge_edge = merge_edges[i];
+            auto& external_neighbours = merge_edge.external_neighbours_;
+            auto& internal_neighbours = merge_edge.internal_neighbours_;
+
+            internal_neighbours.resize(external_neighbours.size());
+
+            for (int level = 0; level <= merge_edge.max_level_; level++) {
+                internal_neighbours[level].reserve(external_neighbours[level].size());
+                for (int i = 0; i < external_neighbours[level].size(); i++) {
+                    internal_neighbours[level].push_back(external_label_to_internal_id[external_neighbours[level][i]]);
+                }
+            }
+        }
+
+        // 填充邻居
         std::random_device rng;
         std::mt19937 urng(rng());
-        for (int i = 0; i < new_edges.size(); i++) {
-            auto& neighbours = new_edges[i].external_neighbours;
-            std::shuffle(neighbours.begin(), neighbours.end(), urng);
-            auto nnbrs = (uint32_t)(std::min)(neighbours.size(), maxM0_);
-            neighbours.resize(nnbrs);  // level0上最多只留下 maxM0 个邻居
+        size_links_per_element_ = maxM0_ * sizeof(tableint) + sizeof(linklistsizeint);  // 高层的 level 也变成 2*M 实时看
 
-            auto internal_id = new_edges[i].internal_id;
-            linklistsizeint* ll_cur = get_linklist0(internal_id);
-            setListCount(ll_cur, nnbrs);
+        // linkLists 需要初始化
+        // return (linklistsizeint *) (linkLists_[internal_id] + (level - 1) * size_links_per_element_);
 
-            tableint* data = (tableint*)(ll_cur+1);
-            for (int i = 0; i < nnbrs; i++) {
-                tableint internal_id = external_label_to_internal_id[neighbours[i]];
-                data[i] = internal_id;
+        for (int i = 0; i < merge_edges.size(); i++) {
+            auto internal_id = merge_edges[i].internal_id;
+            auto cur_max_level = merge_edges[i].max_level_;
+            element_levels_[i] = cur_max_level;
+
+            auto& internal_neighbours = merge_edges[i].internal_neighbours_;
+            for (int level = 0; level <= cur_max_level; level++) {
+                auto& internal_neighbours_level = internal_neighbours[level];
+                std::shuffle(internal_neighbours_level.begin(), internal_neighbours_level.end(), urng);
+                if (internal_neighbours_level.size() > maxM0_) {
+                    internal_neighbours_level.resize(maxM0_);
+                }
+
+                if (level == 0) {
+                    linklistsizeint* ll_cur = get_linklist0(internal_id);
+                    setListCount(ll_cur, internal_neighbours_level.size());
+                    tableint* data = (tableint*)(ll_cur+1);
+                    for (int i = 0; i < internal_neighbours_level.size(); i++) {
+                        data[i] = internal_neighbours_level[i];
+                    }
+                } else {
+                    if (linkLists_[internal_id] == nullptr) {
+                        linkLists_[internal_id] = (linklistsizeint*) malloc(size_links_per_element_*cur_max_level+1);
+                    }
+
+                    linklistsizeint* ll_cur = get_linklist(internal_id, level);
+                    setListCount(ll_cur, internal_neighbours_level.size());
+                    tableint* data = (tableint*)(ll_cur+1);
+                    for (int i = 0; i < internal_neighbours_level.size(); i++) {
+                        data[i] = internal_neighbours_level[i];
+                    }
+                }
             }
         }
     }
