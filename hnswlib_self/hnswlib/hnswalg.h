@@ -955,6 +955,9 @@ class HierarchicalNSW : public AlgorithmInterface<dist_t> {
                 for (int level = 0; level <= cur_level; level++) {
                     auto& merge_neighbours_level  = merge_neighbours[level];
                     auto& edges_external_neighbours_level = graph[i].external_neighbours_[level];
+                    if (&merge_neighbours_level == &edges_external_neighbours_level) {
+                        std::cout << "error: same level linklist" << std::endl;
+                    }
                     merge_neighbours_level.insert(merge_neighbours_level.end(), edges_external_neighbours_level.begin(), edges_external_neighbours_level.end());
                 }
                 continue;
