@@ -941,7 +941,7 @@ class HierarchicalNSW : public AlgorithmInterface<dist_t> {
         for (int i = 1; i < graph.size(); i++) {
             if (graph[i].external_label_ == current_external_label) {
                 // cur_max_level 表示相同 external_label 的边中，最高的 level 
-                auto cur_level = graph[i].max_level;
+                auto cur_level = graph[i].max_level_;
                 if (cur_max_level < cur_level) {
                     cur_max_level = cur_level;
                     merge_neighbours.reserve(cur_max_level+1);
