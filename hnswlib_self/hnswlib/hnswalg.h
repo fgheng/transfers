@@ -862,6 +862,7 @@ class HierarchicalNSW : public AlgorithmInterface<dist_t> {
             std::vector<std::vector<tableint>> internal_neighbours_;
         };
 
+        // 拿到所有点每层的边关系
         std::vector<edge> edges;
         for (int shard_id = 0; shard_id < shard_indexes.size(); shard_id++) {
             size_t shard_max_elements = shard_indexes[shard_id]->max_elements_;
@@ -898,7 +899,7 @@ class HierarchicalNSW : public AlgorithmInterface<dist_t> {
             }
         }
 
-        // 将 external_label_一样的放到一起
+        // 重排，将一样的 external_label 的边放在一起 
         std::sort(edges.begin(), edges.end(), [](const auto &left, const auto &right) {
             return left.external_label_ < right.external_label_ || 
                     (left.external_label_ == right.external_label_ && left.shard_id_ < right.shard_id_);
@@ -912,6 +913,7 @@ class HierarchicalNSW : public AlgorithmInterface<dist_t> {
             throw std::runtime_error("No edges to merge");
         }
 
+        // 合并边
         std::vector<edge> merge_edges;  // 存储合并后的图
         std::unordered_map<labeltype, tableint> external_label_to_internal_id;  // 记录填充后的外部数据在当前索引中的位置
         labeltype current_external_label = edges[0].external_label_;
@@ -1019,9 +1021,6 @@ class HierarchicalNSW : public AlgorithmInterface<dist_t> {
         std::random_device rng;
         std::mt19937 urng(rng());
         size_links_per_element_ = maxM0_ * sizeof(tableint) + sizeof(linklistsizeint);  // 高层的 level 也变成 2*M 实时看
-
-        // linkLists 需要初始化
-        // return (linklistsizeint *) (linkLists_[internal_id] + (level - 1) * size_links_per_element_);
 
         for (int i = 0; i < merge_edges.size(); i++) {
             auto internal_id = merge_edges[i].internal_id;
