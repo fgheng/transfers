@@ -955,7 +955,7 @@ class HierarchicalNSW : public AlgorithmInterface<dist_t> {
                 std::cout << "current max level: " << cur_max_level << " cur level: " << cur_level << " cur merge_neighbours size: " << merge_neighbours.size() << std::endl;
                 if (cur_max_level < cur_level) {
                     cur_max_level = cur_level;
-                    merge_neighbours.reserve(cur_max_level+1);
+                    merge_neighbours.resize(cur_max_level+1);
                     std::cout << "resize merge_neighbours size: " << cur_max_level+1 << "cur max_level" << cur_max_level << std::endl;
                 }
 
