@@ -1103,8 +1103,10 @@ class HierarchicalNSW : public AlgorithmInterface<dist_t> {
         for (auto& node: merge_graph) {
             auto& external_neighbours = node.external_neighbours_;
             auto& internal_neighbours = node.internal_neighbours_;
+            std::cout << "node max level: " << node.max_level_ << std::endl;
 
             for (int level = 0; level <= node.max_level_; level++) {
+                std::cout << "external_neighbours level size: " << external_neighbours[level].size() << std::endl;
                 for (int i = 0; i < external_neighbours[level].size(); i++) {
                     auto it = external_label_to_internal_id.find(external_neighbours[level][i]);
                     if (it == external_label_to_internal_id.end()) {
