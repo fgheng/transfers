@@ -1111,6 +1111,7 @@ class HierarchicalNSW : public AlgorithmInterface<dist_t> {
                         std::cout << "error: external id not found" << std::endl;
                         throw std::runtime_error("external id not found");
                     } else {
+                        std::cout << "internal id: " << it->second << std::endl;
                         internal_neighbours[level][i] = it->second;
                     }
                 }
