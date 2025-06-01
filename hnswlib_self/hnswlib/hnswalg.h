@@ -958,7 +958,7 @@ class HierarchicalNSW : public AlgorithmInterface<dist_t> {
                 }
 
                 std::cout << "merge edge: " << i << " external_label: " << graph[i].external_label_ << " shard_id: " << graph[i].shard_id_
-                    << " max_level: " << cur_level << std::endl;
+                    << " max_level: " << cur_level << " ";
 
                 for (int level = 0; level <= cur_level; level++) {
                     auto& merge_neighbours_level  = merge_neighbours[level];
