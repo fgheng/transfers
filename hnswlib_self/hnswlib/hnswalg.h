@@ -946,6 +946,7 @@ class HierarchicalNSW : public AlgorithmInterface<dist_t> {
         }
 
         std::cout << "merge all edges" << std::endl;
+        std::cout << "graph size: " << graph.size() << std::endl;
         // 遍历所有的边，合并各个 level 的邻居
         for (int i = 1; i < graph.size(); i++) {
             if (graph[i].external_label_ == current_external_label) {
@@ -955,6 +956,9 @@ class HierarchicalNSW : public AlgorithmInterface<dist_t> {
                     cur_max_level = cur_level;
                     merge_neighbours.reserve(cur_max_level+1);
                 }
+
+                std::cout << "merge edge: " << i << " external_label: " << graph[i].external_label_ << " shard_id: " << graph[i].shard_id_
+                    << " max_level: " << cur_level << std::endl;
 
                 for (int level = 0; level <= cur_level; level++) {
                     auto& merge_neighbours_level  = merge_neighbours[level];
