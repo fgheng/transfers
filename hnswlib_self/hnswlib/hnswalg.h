@@ -938,12 +938,28 @@ class HierarchicalNSW : public AlgorithmInterface<dist_t> {
         external_label_to_internal_id[current_external_label] = current_internal_label;    // 记录外部id在当前索引中的位置 
 
         // 合并 0 号点的边
+        // std::vector<std::vector<std::vector<labeltype>>> graph_merge_neighbours(max_elements_);
         std::vector<std::vector<labeltype>> merge_neighbours(cur_max_level+1);
+        // std::cout << "resize merge_neighbours size: " << std::endl;
+        // cur_max_level = graph[0].max_level_;
+        // for (int i = 1; i < graph.size(); i++) {
+        //     if (graph[i].external_label_ == current_external_label) {
+        //         if (graph[i].max_level_ > cur_max_level) {
+        //             cur_max_level = graph[i].max_level_;
+        //         }
+        //     } else {
+        //         graph_merge_neighbours[i-1].resize(cur_max_level+1);
+        //
+        //         cur_max_level = graph[i].max_level_;
+        //     }
+        // }
+
         for (int level = 0; level <= cur_max_level; level++) {
             auto& merge_neighbours_level  = merge_neighbours[level];
             auto& edges_external_neighbours_level = graph[0].external_neighbours_[level];
             merge_neighbours_level.insert(merge_neighbours_level.end(), edges_external_neighbours_level.begin(), edges_external_neighbours_level.end());
         }
+
 
         std::cout << "merge all edges" << std::endl;
         std::cout << "graph size: " << graph.size() << std::endl;
@@ -952,23 +968,23 @@ class HierarchicalNSW : public AlgorithmInterface<dist_t> {
             if (graph[i].external_label_ == current_external_label) {
                 // cur_max_level 表示相同 external_label 的边中，最高的 level 
                 auto cur_level = graph[i].max_level_;
-                std::cout << "current max level: " << cur_max_level << " cur level: " << cur_level << " cur merge_neighbours size: " << merge_neighbours.size() << std::endl;
+                // std::cout << "current max level: " << cur_max_level << " cur level: " << cur_level << " cur merge_neighbours size: " << merge_neighbours.size() << std::endl;
                 if (cur_max_level < cur_level) {
                     cur_max_level = cur_level;
                     merge_neighbours.resize(cur_max_level+1);
-                    std::cout << "resize merge_neighbours size: " << cur_max_level+1 << "cur max_level" << cur_max_level << std::endl;
+                    // std::cout << "resize merge_neighbours size: " << cur_max_level+1 << "cur max_level" << cur_max_level << std::endl;
                 }
 
-                std::cout << "merge edge: " << i << " external_label: " << graph[i].external_label_ << " shard_id: " << graph[i].shard_id_
-                    << " max_level: " << cur_level << " ";
+                // std::cout << "merge edge: " << i << " external_label: " << graph[i].external_label_ << " shard_id: " << graph[i].shard_id_
+                    // << " max_level: " << cur_level << " ";
 
                 for (int level = 0; level <= cur_level; level++) {
                     auto& merge_neighbours_level  = merge_neighbours[level];
                     auto& edges_external_neighbours_level = graph[i].external_neighbours_[level];
-                    if (&merge_neighbours_level == &edges_external_neighbours_level) {
-                        std::cout << "error: same level linklist" << std::endl;
-                    }
-                    std::cout << "merge level: " << level << " size: " << edges_external_neighbours_level.size() << std::endl;
+                    // if (&merge_neighbours_level == &edges_external_neighbours_level) {
+                    //     std::cout << "error: same level linklist" << std::endl;
+                    // }
+                    // std::cout << "merge level: " << level << " size: " << edges_external_neighbours_level.size() << std::endl;
                     merge_neighbours_level.insert(merge_neighbours_level.end(), edges_external_neighbours_level.begin(), edges_external_neighbours_level.end());
                 }
                 continue;
