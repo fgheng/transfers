@@ -1115,13 +1115,17 @@ class HierarchicalNSW : public AlgorithmInterface<dist_t> {
             auto& internal_neighbours = node.internal_neighbours_;
 
             for (int level = 0; level <= node.max_level_; level++) {
+                internal_neighbours[level].resize(external_neighbours[level].size());
+            }
+
+            for (int level = 0; level <= node.max_level_; level++) {
                 for (int i = 0; i < external_neighbours[level].size(); i++) {
                     auto it = external_label_to_internal_id.find(external_neighbours[level][i]);
                     if (it == external_label_to_internal_id.end()) {
                         std::cout << "error: external id not found" << std::endl;
                         throw std::runtime_error("external id not found");
                     } else {
-                        internal_neighbours[level].push_back(it->second);
+                        internal_neighbours[level][i] = (it->second);
                     }
                 }
             }
@@ -1134,9 +1138,14 @@ class HierarchicalNSW : public AlgorithmInterface<dist_t> {
         size_links_per_element_ = maxM0_ * sizeof(tableint) + sizeof(linklistsizeint);  // 高层的 level 也变成 2*M 实时看
 
         for (int i = 0; i < merge_graph.size(); i++) {
-            auto internal_id = merge_graph[i].internal_label_;
+            auto internal_label = merge_graph[i].internal_label_;
             auto cur_max_level = merge_graph[i].max_level_;
             element_levels_[i] = cur_max_level;
+
+            if (cur_max_level > 0) {
+                linkLists_[internal_label] = (char*)malloc(size_links_per_element_*cur_max_level+1);
+                memset(linkLists_[internal_label], 0, size_links_per_element_*cur_max_level+1);
+            }
 
             auto& internal_neighbours = merge_graph[i].internal_neighbours_;
             for (int level = 0; level <= cur_max_level; level++) {
@@ -1145,18 +1154,14 @@ class HierarchicalNSW : public AlgorithmInterface<dist_t> {
                 size_t num_neighbours = internal_neighbours_level.size() > maxM0_ ? maxM0_ : internal_neighbours_level.size();
 
                 if (level == 0) {
-                    linklistsizeint* ll_cur = get_linklist0(internal_id);
+                    linklistsizeint* ll_cur = get_linklist0(internal_label);
                     setListCount(ll_cur, num_neighbours);
                     tableint* data = (tableint*)(ll_cur+1);
                     for (int i = 0; i < num_neighbours; i++) {
                         data[i] = internal_neighbours_level[i];
                     }
                 } else {
-                    if (linkLists_[internal_id] == nullptr) {
-                        linkLists_[internal_id] = (char*)malloc(size_links_per_element_*cur_max_level+1);
-                    }
-
-                    linklistsizeint* ll_cur = get_linklist(internal_id, level);
+                    linklistsizeint* ll_cur = get_linklist(internal_label, level);
                     setListCount(ll_cur, num_neighbours);
                     tableint* data = (tableint*)(ll_cur+1);
                     for (int i = 0; i < num_neighbours; i++) {
