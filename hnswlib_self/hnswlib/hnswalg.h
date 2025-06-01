@@ -1065,9 +1065,19 @@ class HierarchicalNSW : public AlgorithmInterface<dist_t> {
             }
         }
 
+        // 去重
+        std::cout << "unique" << std::endl;
+        for (auto& node: merge_graph) {
+            auto& external_neighbours = node.external_neighbours_;
+            for (int level = 0; level <= node.max_level_; level++) {
+                auto& merge_neighbours_level = external_neighbours[level];
+                std::sort(merge_neighbours_level.begin(), merge_neighbours_level.end());
+                auto it = std::unique(merge_neighbours_level.begin(), merge_neighbours_level.end());
+                merge_neighbours_level.erase(it, merge_neighbours_level.end());
+            }
+        }
+
         std::cout << "merge graph size: " << merge_graph.size() << std::endl;
-
-
         // 检查 max_level跟实际的邻居数量是否一致 
         for (int i = 0; i < merge_graph.size(); i++) {
             if (merge_graph[i].max_level_ != merge_graph[i].external_neighbours_.size() - 1) {
@@ -1115,7 +1125,7 @@ class HierarchicalNSW : public AlgorithmInterface<dist_t> {
                         throw std::runtime_error("external id not found");
                     } else {
                         std::cout << "internal id: " << it->second << std::endl;
-                        internal_neighbours[level][i] = it->second;
+                        internal_neighbours[level].push_back(it->second);
                     }
                 }
             }
