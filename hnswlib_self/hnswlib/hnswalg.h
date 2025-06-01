@@ -952,9 +952,11 @@ class HierarchicalNSW : public AlgorithmInterface<dist_t> {
             if (graph[i].external_label_ == current_external_label) {
                 // cur_max_level 表示相同 external_label 的边中，最高的 level 
                 auto cur_level = graph[i].max_level_;
+                std::cout << "current max level: " << cur_max_level << " cur level: " << cur_level << " cur merge_neighbours size: " << merge_neighbours.size() << std::endl;
                 if (cur_max_level < cur_level) {
                     cur_max_level = cur_level;
                     merge_neighbours.reserve(cur_max_level+1);
+                    std::cout << "resize merge_neighbours size: " << cur_max_level+1 << "cur max_level" << cur_max_level << std::endl;
                 }
 
                 std::cout << "merge edge: " << i << " external_label: " << graph[i].external_label_ << " shard_id: " << graph[i].shard_id_
