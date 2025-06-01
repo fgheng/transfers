@@ -971,7 +971,7 @@ class HierarchicalNSW : public AlgorithmInterface<dist_t> {
                 }
                 continue;
             } else {
-                std::cout << "push edge: " << i << " external_label: " << graph[i].external_label_ << " shard_id: " << graph[i].shard_id_ << std::endl;
+                // std::cout << "push edge: " << i << " external_label: " << graph[i].external_label_ << " shard_id: " << graph[i].shard_id_ << std::endl;
 
                 struct node new_edge;
                 new_edge.external_label_ = current_external_label;
