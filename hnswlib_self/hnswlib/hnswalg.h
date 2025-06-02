@@ -1063,10 +1063,16 @@ class HierarchicalNSW : public AlgorithmInterface<dist_t> {
         std::mt19937 urng(rng());
         size_links_per_element_ = maxM0_ * sizeof(tableint) + sizeof(linklistsizeint);  // 高层的 level 也变成 2*M 实时看
 
+        std::cout << "enter point node: " << enterpoint_node_ << std::endl;
+        size_t enterpoint_max_level = 0;
         for (int i = 0; i < merge_graph.size(); i++) {
             auto internal_label = merge_graph[i].internal_label_;
             auto cur_max_level = merge_graph[i].max_level_;
             element_levels_[i] = cur_max_level;
+            if (cur_max_level > enterpoint_max_level) {
+                enterpoint_max_level = cur_max_level;
+                enterpoint_node_ = internal_label;
+            }
 
             if (cur_max_level > 0) {
                 linkLists_[internal_label] = (char*)malloc(size_links_per_element_*cur_max_level+1);
@@ -1096,6 +1102,7 @@ class HierarchicalNSW : public AlgorithmInterface<dist_t> {
                 }
             }
         }
+        std::cout << "enter point node: " << enterpoint_node_ << std::endl;
     }
 
 
