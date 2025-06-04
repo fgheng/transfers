@@ -887,7 +887,7 @@ class HierarchicalNSW : public AlgorithmInterface<dist_t> {
 
                 tableint *data = (tableint *) (ll_cur + 1);
                 for (int j = 0; j < *ll_cur; j++) {
-                    tableint internal_id_neighbour = *(data+i);
+                    tableint internal_id_neighbour = *(data+j);
                     in_degrees[internal_id_neighbour][level]++;
                 }
             }
