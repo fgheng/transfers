@@ -851,6 +851,25 @@ class HierarchicalNSW : public AlgorithmInterface<dist_t> {
         }
     }
 
+    void countOutDegrees(std::vector<std::vector<size_t>>& out_degrees) {
+        out_degrees.resize(max_elements_);
+        for (int i = 0; i < max_elements_; i++) {
+            out_degrees[i].resize(element_levels_[i]);
+        }
+
+        for (int i = 0; i < max_elements_; i++) {
+            for (int level = 0; level < element_levels_[i]; i++) {
+                linklistsizeint* ll_cur;
+                if (level == 0) {
+                    ll_cur = get_linklist0(i);
+                } else {
+                    ll_cur = get_linklist(i, level);
+                }
+                out_degrees[i][level] = *ll_cur;
+            }
+        }
+    }
+
     // 索引合并测试
     // 仅测试召回功能，不涉及内存优化
     void mergeIndex(const std::vector<HierarchicalNSW*>& shard_indexes) {
