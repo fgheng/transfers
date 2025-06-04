@@ -854,7 +854,7 @@ class HierarchicalNSW : public AlgorithmInterface<dist_t> {
     void countOutDegrees(std::vector<std::vector<size_t>>& out_degrees) {
         out_degrees.resize(max_elements_);
         for (int i = 0; i < max_elements_; i++) {
-            out_degrees[i].resize(element_levels_[i]);
+            out_degrees[i].resize(element_levels_[i]+1);
         }
 
         for (int i = 0; i < max_elements_; i++) {
