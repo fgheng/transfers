@@ -1084,6 +1084,7 @@ class HierarchicalNSW : public AlgorithmInterface<dist_t> {
             for (int level = 0; level <= cur_max_level; level++) {
                 auto& internal_neighbours_level = internal_neighbours[level];
                 std::shuffle(internal_neighbours_level.begin(), internal_neighbours_level.end(), urng);
+                // 这里用启发式计算一下如何
 
                 if (level == 0) {
                     size_t num_neighbours = internal_neighbours_level.size() > maxM0_ ? maxM0_ : internal_neighbours_level.size();
@@ -1618,7 +1619,7 @@ class HierarchicalNSW : public AlgorithmInterface<dist_t> {
         std::priority_queue<std::pair<dist_t, tableint>, std::vector<std::pair<dist_t, tableint>>, CompareByFirst> top_candidates;
         bool bare_bone_search = !num_deleted_ && !isIdAllowed;
         if (bare_bone_search) {
-            top_candidates = searchBaseLayerST<true>(
+            top_candidates = searchBaseLayerST<true, true>( // collect_metrics
                     currObj, query_data, std::max(ef_, k), isIdAllowed);
         } else {
             top_candidates = searchBaseLayerST<false>(
