@@ -1061,7 +1061,8 @@ class HierarchicalNSW : public AlgorithmInterface<dist_t> {
         // 填充邻居
         std::random_device rng;
         std::mt19937 urng(rng());
-        size_links_per_element_ = maxM0_ * sizeof(tableint) + sizeof(linklistsizeint);  // 高层的 level 也变成 2*M 实时看
+        // size_links_per_element_ = maxM0_ * sizeof(tableint) + sizeof(linklistsizeint);  // 高层的 level 也变成 2*M 实时看
+        size_links_per_element_ = maxM_ * sizeof(tableint) + sizeof(linklistsizeint);
 
         std::cout << "enter point node: " << enterpoint_node_ << std::endl;
         size_t enterpoint_max_level = 0;
@@ -1083,9 +1084,10 @@ class HierarchicalNSW : public AlgorithmInterface<dist_t> {
             for (int level = 0; level <= cur_max_level; level++) {
                 auto& internal_neighbours_level = internal_neighbours[level];
                 std::shuffle(internal_neighbours_level.begin(), internal_neighbours_level.end(), urng);
-                size_t num_neighbours = internal_neighbours_level.size() > maxM0_ ? maxM0_ : internal_neighbours_level.size();
 
                 if (level == 0) {
+                    size_t num_neighbours = internal_neighbours_level.size() > maxM0_ ? maxM0_ : internal_neighbours_level.size();
+
                     linklistsizeint* ll_cur = get_linklist0(internal_label);
                     setListCount(ll_cur, num_neighbours);
                     tableint* data = (tableint*)(ll_cur+1);
@@ -1093,6 +1095,8 @@ class HierarchicalNSW : public AlgorithmInterface<dist_t> {
                         data[i] = internal_neighbours_level[i];
                     }
                 } else {
+                    size_t num_neighbours = internal_neighbours_level.size() > maxM_ ? maxM_ : internal_neighbours_level.size();
+
                     linklistsizeint* ll_cur = get_linklist(internal_label, level);
                     setListCount(ll_cur, num_neighbours);
                     tableint* data = (tableint*)(ll_cur+1);
