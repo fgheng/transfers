@@ -858,7 +858,7 @@ class HierarchicalNSW : public AlgorithmInterface<dist_t> {
         }
 
         for (int i = 0; i < max_elements_; i++) {
-            for (int level = 0; level < element_levels_[i]; i++) {
+            for (int level = 0; level <= element_levels_[i]; i++) {
                 linklistsizeint* ll_cur;
                 if (level == 0) {
                     ll_cur = get_linklist0(i);
@@ -877,7 +877,7 @@ class HierarchicalNSW : public AlgorithmInterface<dist_t> {
         }
 
         for (int i = 0; i < max_elements_; i++) {
-            for (int level = 0; level < element_levels_[i]; i++) {
+            for (int level = 0; level <= element_levels_[i]; i++) {
                 linklistsizeint* ll_cur;
                 if (level == 0) {
                     ll_cur = get_linklist0(i);
