@@ -1057,16 +1057,16 @@ class HierarchicalNSW : public AlgorithmInterface<dist_t> {
         }
 
         // 去重
-        std::cout << "unique" << std::endl;
-        for (auto& node: merge_graph) {
-            auto& external_neighbours = node.external_neighbours_;
-            for (int level = 0; level <= node.max_level_; level++) {
-                auto& merge_neighbours_level = external_neighbours[level];
-                std::sort(merge_neighbours_level.begin(), merge_neighbours_level.end());
-                auto it = std::unique(merge_neighbours_level.begin(), merge_neighbours_level.end());
-                merge_neighbours_level.erase(it, merge_neighbours_level.end());
-            }
-        }
+        // std::cout << "unique" << std::endl;
+        // for (auto& node: merge_graph) {
+        //     auto& external_neighbours = node.external_neighbours_;
+        //     for (int level = 0; level <= node.max_level_; level++) {
+        //         auto& merge_neighbours_level = external_neighbours[level];
+        //         std::sort(merge_neighbours_level.begin(), merge_neighbours_level.end());
+        //         auto it = std::unique(merge_neighbours_level.begin(), merge_neighbours_level.end());
+        //         merge_neighbours_level.erase(it, merge_neighbours_level.end());
+        //     }
+        // }
 
         std::cout << "merge graph size: " << merge_graph.size() << std::endl;
         // 检查 max_level跟实际的邻居数量是否一致 
@@ -1102,8 +1102,8 @@ class HierarchicalNSW : public AlgorithmInterface<dist_t> {
 
         std::cout << "fill edges" << std::endl;
         // 填充邻居
-        std::random_device rng;
-        std::mt19937 urng(rng());
+        // std::random_device rng;
+        // std::mt19937 urng(rng());
         // size_links_per_element_ = maxM0_ * sizeof(tableint) + sizeof(linklistsizeint);  // 高层的 level 也变成 2*M 实时看
         size_links_per_element_ = maxM_ * sizeof(tableint) + sizeof(linklistsizeint);
 
@@ -1126,8 +1126,8 @@ class HierarchicalNSW : public AlgorithmInterface<dist_t> {
             auto& internal_neighbours = merge_graph[i].internal_neighbours_;
             for (int level = 0; level <= cur_max_level; level++) {
                 auto& internal_neighbours_level = internal_neighbours[level];
-                std::shuffle(internal_neighbours_level.begin(), internal_neighbours_level.end(), urng);
-                // 这里用启发式计算一下如何
+                mergeSelectNeighbors(internal_neighbours_level);
+                // std::shuffle(internal_neighbours_level.begin(), internal_neighbours_level.end(), urng);
 
                 if (level == 0) {
                     size_t num_neighbours = internal_neighbours_level.size() > maxM0_ ? maxM0_ : internal_neighbours_level.size();
@@ -1151,6 +1151,46 @@ class HierarchicalNSW : public AlgorithmInterface<dist_t> {
             }
         }
         std::cout << "enter point node: " << enterpoint_node_ << std::endl;
+    }
+
+    void mergeSelectNeighbors(std::vector<tableint>& internal_neighbours) {
+        // 方案 1：去重后随机选择
+        // std::sort(internal_neighbours.begin(), internal_neighbours.end());
+        // auto it = std::unique(internal_neighbours.begin(), internal_neighbours.end());
+        // internal_neighbours.erase(it, internal_neighbours.end());
+        // std::random_device rng;
+        // std::mt19937 urng(rng());
+        // std::shuffle(internal_neighbours.begin(), internal_neighbours.end(), urng);
+
+        // 方案 2：按照 id 排序，重复多的放到最前面
+        std::sort(internal_neighbours.begin(), internal_neighbours.end());
+        std::vector<std::pair<tableint, int>> count_neighbours;
+        tableint first = internal_neighbours[0];
+        std::pair<tableint, int> first_pair(first, 1);
+        count_neighbours.push_back(first_pair);
+        for (int i = 1; i < internal_neighbours.size(); i++) {
+            if (internal_neighbours[i] == first) {
+                count_neighbours.back().second += 1;
+            } else {
+                first = internal_neighbours[i];
+                std::pair<tableint, int> new_pair(first, 1);
+                count_neighbours.push_back(new_pair);
+            }
+        }
+        // 从大到小排序
+        std::sort(count_neighbours.begin(), count_neighbours.end(), [](const auto &left, const auto &right) {
+            return left.second > right.second;
+        });
+        std::vector<tableint>().swap(internal_neighbours);  // 清空并释放内存
+
+        internal_neighbours.push_back(count_neighbours[0].first);  // 重复最多的放到最前面
+        for (int i = 1; i < count_neighbours.size(); i++) {
+            if (count_neighbours[i].first != count_neighbours[i-1].first) {
+                internal_neighbours.push_back(count_neighbours[i].first);
+            }
+        }
+
+        // 方案 3：启发式选择
     }
 
 
