@@ -9,6 +9,7 @@
 #include <unordered_set>
 #include <list>
 #include <memory>
+#include "./space_pq.h"
 
 namespace hnswlib {
 typedef unsigned int tableint;
@@ -70,6 +71,13 @@ class HierarchicalNSW : public AlgorithmInterface<dist_t> {
 
     std::mutex deleted_elements_lock;  // lock for deleted_elements
     std::unordered_set<tableint> deleted_elements;  // contains internal ids of deleted elements
+
+    int pq_M_ = 0;
+    int pq_nbits_ = 0;
+    int pq_dsub = 0;
+    int pq_ks_ = 0;
+
+    std::vector<std::vector<float>> pq_centroids_;
 
 
     HierarchicalNSW(SpaceInterface<dist_t> *s) {
@@ -1183,6 +1191,48 @@ class HierarchicalNSW : public AlgorithmInterface<dist_t> {
         // 方案 3：启发式选择
     }
 
+    void loadCodeBooks(const std::vector<std::vector<float>>& code_books) {
+        pq_centroids_ = code_books;
+    }
+
+    void loadPqIndex(const std::vector<std::vector<uint8_t>>& pq_codes) {
+        for (int i = 0; i < max_elements_; i++) {
+            char* data = getDataByInternalId(i);
+            memcpy(data, pq_codes[i].data(), pq_codes[i].size());
+        }
+    }
+
+    float L2(const float* d1, const float *d2, int dim) {
+        float r = 0.0;
+        for (int i = 0; i < dim; i++) {
+            float r1 = *(d1+i)-*(d2+i);
+            r += r1*r1;
+        }
+
+        return r;
+    }
+
+    void calDistLookUpTable(int M, int Ks, int dsub) {
+      hnswlib::dist_lookup.resize(M);
+      for (int i = 0; i < hnswlib::dist_lookup.size(); i++) {
+          hnswlib::dist_lookup[i].resize(Ks * (Ks + 1) / 2);
+      }
+
+      for (int i = 0; i < M; i++) {
+        const float *data = pq_centroids_[i].data();
+
+        for (int j = 0; j < Ks; j++) {
+          for (int k = 0; k < Ks; k++) {
+            if (j < k)
+              break;
+
+            float d = L2(data + j * dsub, data + k * dsub, dsub);
+            size_t idx = j * (j + 1) / 2 + k;
+            dist_lookup[i][idx] = d;
+          }
+        }
+      }
+    }
 
     template<typename data_t>
     std::vector<data_t> getDataByLabel(labeltype label) const {

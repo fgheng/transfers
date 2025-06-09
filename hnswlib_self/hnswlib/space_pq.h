@@ -3,53 +3,40 @@
 
 namespace hnswlib {
 
-std::vector<std::vector<std::vector<float>>> codebooks_;
-std::vector<std::vector<std::vector<float>>> dist_;
+std::vector<std::vector<float>> dist_lookup;
 
 static float
-PqSdcL2Sqr(const void *pVect1v, const void *pVect2v, const void *qty_ptr) { // 对称距离计算，两个向量都使用编码后的向量
-    data_t *pVect1 = (data_t *) pVect1v;
-    data_t *pVect2 = (data_t *) pVect2v;
-    size_t qty = *((size_t *) qty_ptr);
+pq_distance(const void *pVect1v, const void *pVect2v, const void *qty_ptr) {
+  uint8_t *pv1 = (uint8_t *)pVect1v;
+  uint8_t *pv2 = (uint8_t *)pVect2v;
 
-    float res = 0;
-    for (size_t i = 0; i < SUBVECTOR_NUM; ++i) {
-        data_t index1 = pVect1[i];
-        data_t index2 = pVect2[i];
-        if (index1 > index2) std::swap(index1, index2);
-        res += dist_[i][index1][index2];
+  size_t qty = *((size_t *)qty_ptr);
+  float res = 0;
+
+  for (size_t i = 0; i < qty; ++i) {
+    uint8_t idx1 = pv1[i];
+    uint8_t idx2 = pv2[i];
+    if (idx1 < idx2) {
+        size_t idx = idx2 * (idx2 + 1) / 2 + idx1;
+        res += dist_lookup[i][idx];
+    } else {
+        size_t idx = idx1 * (idx1 + 1) / 2 + idx2;
+        res += dist_lookup[i][idx];
     }
-    return (res);
+  }
+  return res;
 }
 
-static float
-PqAdcL2Sqr(const void *pVect1v, const void *pVect2v, const void *qty_ptr) {
-    float *pVect1 = (float *) pVect1v;
-    data_t *pVect2 = (data_t *) pVect2v;
-    size_t qty = *((size_t *) qty_ptr);
-
-    float res = 0;
-    for (size_t i = 0; i < SUBVECTOR_NUM; ++i) {
-        data_t index2 = pVect2[i];
-        const std::vector<float>& centroid2 = codebooks_[i][index2];
-        for (size_t j = 0; j < SUBVECTOR_LENGTH; ++j) {
-            float t = centroid2[j] - pVect1[i * SUBVECTOR_LENGTH + j];
-            res += t * t;
-        }
-    }
-    return (res);
-}
-
-class PqSdcSpace : public SpaceInterface<float> {
+class PqSpace : public SpaceInterface<float> {
     DISTFUNC<float> fstdistfunc_;
     size_t data_size_;
     size_t dim_;
 
-public:
-    PqSdcSpace(size_t dim) {
-        fstdistfunc_ = PqSdcL2Sqr;
+ public:
+    PqSpace(size_t dim) {
+        fstdistfunc_ = pq_distance;
         dim_ = dim;
-        data_size_ = dim * sizeof(data_t);
+        data_size_ = dim * sizeof(uint8_t);
     }
 
     size_t get_data_size() {
@@ -63,32 +50,8 @@ public:
     void *get_dist_func_param() {
         return &dim_;
     }
+
+    ~PqSpace() {}
 };
 
-class PqAdcSpace : public SpaceInterface<float> {
-    DISTFUNC<float> fstdistfunc_;
-    size_t data_size_;
-    size_t dim_;
-
-public:
-    PqAdcSpace(size_t dim) {
-        fstdistfunc_ = PqAdcL2Sqr;
-        dim_ = dim;
-        data_size_ = dim * sizeof(data_t);
-    }
-
-    size_t get_data_size() {
-        return data_size_;
-    }
-
-    DISTFUNC<float> get_dist_func() {
-        return fstdistfunc_;
-    }
-
-    void *get_dist_func_param() {
-        return &dim_;
-    }
-};
-
-}  // namespace hnswlib
-
+}
