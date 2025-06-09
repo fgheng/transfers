@@ -1163,26 +1163,16 @@ class HierarchicalNSW : public AlgorithmInterface<dist_t> {
         // std::shuffle(internal_neighbours.begin(), internal_neighbours.end(), urng);
 
         // 方案 2：按照 id 排序，重复多的放到最前面
-        std::sort(internal_neighbours.begin(), internal_neighbours.end());
-        std::vector<std::pair<tableint, int>> count_neighbours;
-        tableint first = internal_neighbours[0];
-        std::pair<tableint, int> first_pair(first, 1);
-        count_neighbours.push_back(first_pair);
-        for (int i = 1; i < internal_neighbours.size(); i++) {
-            if (internal_neighbours[i] == first) {
-                count_neighbours.back().second += 1;
-            } else {
-                first = internal_neighbours[i];
-                std::pair<tableint, int> new_pair(first, 1);
-                count_neighbours.push_back(new_pair);
-            }
+        std::unordered_map<tableint, int> count_map;
+        for (auto& internal_id : internal_neighbours) {
+            count_map[internal_id]++;
         }
-        // 从大到小排序
+        std::vector<std::pair<tableint, int>> count_neighbours(count_map.begin(), count_map.end());
         std::sort(count_neighbours.begin(), count_neighbours.end(), [](const auto &left, const auto &right) {
             return left.second > right.second;
         });
-        std::vector<tableint>().swap(internal_neighbours);  // 清空并释放内存
 
+        std::vector<tableint>().swap(internal_neighbours);  // 清空并释放内存
         internal_neighbours.push_back(count_neighbours[0].first);  // 重复最多的放到最前面
         for (int i = 1; i < count_neighbours.size(); i++) {
             if (count_neighbours[i].first != count_neighbours[i-1].first) {
