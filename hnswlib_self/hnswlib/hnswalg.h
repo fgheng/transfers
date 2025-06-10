@@ -78,6 +78,7 @@ class HierarchicalNSW : public AlgorithmInterface<dist_t> {
     int pq_ks_ = 0;
 
     std::vector<std::vector<float>> pq_centroids_;
+    std::vector<float> pq_residuals_;
 
 
     HierarchicalNSW(SpaceInterface<dist_t> *s) {
@@ -331,6 +332,7 @@ class HierarchicalNSW : public AlgorithmInterface<dist_t> {
         tableint ep_id,
         const void *data_point,
         size_t ef,
+        float q_residual,
         BaseFilterFunctor* isIdAllowed = nullptr,
         BaseSearchStopCondition<dist_t>* stop_condition = nullptr) const {
         VisitedList *vl = visited_list_pool_->getFreeVisitedList();
@@ -345,6 +347,9 @@ class HierarchicalNSW : public AlgorithmInterface<dist_t> {
             (!isMarkedDeleted(ep_id) && ((!isIdAllowed) || (*isIdAllowed)(getExternalLabel(ep_id))))) {
             char* ep_data = getDataByInternalId(ep_id);
             dist_t dist = fstdistfunc_(data_point, ep_data, dist_func_param_);
+                    // add residuals
+                    dist += q_residual;
+                    dist += pq_residuals_[*getExternalLabeLp(ep_id)];
             lowerBound = dist;
             top_candidates.emplace(dist, ep_id);
             if (!bare_bone_search && stop_condition) {
@@ -406,6 +411,9 @@ class HierarchicalNSW : public AlgorithmInterface<dist_t> {
 
                     char *currObj1 = (getDataByInternalId(candidate_id));
                     dist_t dist = fstdistfunc_(data_point, currObj1, dist_func_param_);
+                    // add residuals
+                    dist += q_residual;
+                    dist += pq_residuals_[*getExternalLabeLp(candidate_id)];
 
                     bool flag_consider_candidate;
                     if (!bare_bone_search && stop_condition) {
@@ -1195,6 +1203,14 @@ class HierarchicalNSW : public AlgorithmInterface<dist_t> {
         pq_centroids_ = code_books;
     }
 
+    void loadResiduals(const std::vector<float>& residuals) {
+        pq_residuals_ = residuals;
+    }
+
+    // void loadQueryResiduals(const std::vector<float>& query_residuals) {
+    //     query_residuals_ = query_residuals;
+    // }
+
     void loadPqIndex(const std::vector<std::vector<uint8_t>>& pq_codes) {
         for (int i = 0; i < max_elements_; i++) {
             char* data = getDataByInternalId(i);
@@ -1705,12 +1721,15 @@ class HierarchicalNSW : public AlgorithmInterface<dist_t> {
 
 
     std::priority_queue<std::pair<dist_t, labeltype >>
-    searchKnn(const void *query_data, size_t k, BaseFilterFunctor* isIdAllowed = nullptr) const {
+    searchKnn(const void *query_data, size_t k, float q_residual, BaseFilterFunctor* isIdAllowed = nullptr) const {
         std::priority_queue<std::pair<dist_t, labeltype >> result;
         if (cur_element_count == 0) return result;
 
         tableint currObj = enterpoint_node_;
         dist_t curdist = fstdistfunc_(query_data, getDataByInternalId(enterpoint_node_), dist_func_param_);
+        // add residuals
+        curdist += q_residual;
+        curdist += pq_residuals_[*getExternalLabeLp(enterpoint_node_)];
 
         for (int level = maxlevel_; level > 0; level--) {
             bool changed = true;
@@ -1729,6 +1748,9 @@ class HierarchicalNSW : public AlgorithmInterface<dist_t> {
                     if (cand < 0 || cand > max_elements_)
                         throw std::runtime_error("cand error");
                     dist_t d = fstdistfunc_(query_data, getDataByInternalId(cand), dist_func_param_);
+                    // add residuals
+                    d += q_residual;
+                    d += pq_residuals_[*getExternalLabeLp(cand)];
 
                     if (d < curdist) {
                         curdist = d;
@@ -1743,10 +1765,10 @@ class HierarchicalNSW : public AlgorithmInterface<dist_t> {
         bool bare_bone_search = !num_deleted_ && !isIdAllowed;
         if (bare_bone_search) {
             top_candidates = searchBaseLayerST<true, true>( // collect_metrics
-                    currObj, query_data, std::max(ef_, k), isIdAllowed);
+                    currObj, query_data, std::max(ef_, k), q_residual, isIdAllowed);
         } else {
             top_candidates = searchBaseLayerST<false>(
-                    currObj, query_data, std::max(ef_, k), isIdAllowed);
+                    currObj, query_data, std::max(ef_, k), q_residual, isIdAllowed);
         }
 
         while (top_candidates.size() > k) {
@@ -1847,3 +1869,4 @@ class HierarchicalNSW : public AlgorithmInterface<dist_t> {
     }
 };
 }  // namespace hnswlib
+   //
