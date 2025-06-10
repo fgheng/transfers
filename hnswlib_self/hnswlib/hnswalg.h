@@ -348,8 +348,8 @@ class HierarchicalNSW : public AlgorithmInterface<dist_t> {
             char* ep_data = getDataByInternalId(ep_id);
             dist_t dist = fstdistfunc_(data_point, ep_data, dist_func_param_);
                     // add residuals
-                    dist += q_residual;
-                    dist += pq_residuals_[*getExternalLabeLp(ep_id)];
+                    // dist += q_residual;
+                    // dist += pq_residuals_[*getExternalLabeLp(ep_id)];
             lowerBound = dist;
             top_candidates.emplace(dist, ep_id);
             if (!bare_bone_search && stop_condition) {
@@ -412,8 +412,8 @@ class HierarchicalNSW : public AlgorithmInterface<dist_t> {
                     char *currObj1 = (getDataByInternalId(candidate_id));
                     dist_t dist = fstdistfunc_(data_point, currObj1, dist_func_param_);
                     // add residuals
-                    dist += q_residual;
-                    dist += pq_residuals_[*getExternalLabeLp(candidate_id)];
+                    // dist += q_residual;
+                    // dist += pq_residuals_[*getExternalLabeLp(candidate_id)];
 
                     bool flag_consider_candidate;
                     if (!bare_bone_search && stop_condition) {
@@ -1729,8 +1729,8 @@ class HierarchicalNSW : public AlgorithmInterface<dist_t> {
         tableint currObj = enterpoint_node_;
         dist_t curdist = fstdistfunc_(query_data, getDataByInternalId(enterpoint_node_), dist_func_param_);
         // add residuals
-        curdist += q_residual;
-        curdist += pq_residuals_[*getExternalLabeLp(enterpoint_node_)];
+        // curdist += q_residual;
+        // curdist += pq_residuals_[*getExternalLabeLp(enterpoint_node_)];
 
         for (int level = maxlevel_; level > 0; level--) {
             bool changed = true;
@@ -1750,8 +1750,8 @@ class HierarchicalNSW : public AlgorithmInterface<dist_t> {
                         throw std::runtime_error("cand error");
                     dist_t d = fstdistfunc_(query_data, getDataByInternalId(cand), dist_func_param_);
                     // add residuals
-                    d += q_residual;
-                    d += pq_residuals_[*getExternalLabeLp(cand)];
+                    // d += q_residual;
+                    // d += pq_residuals_[*getExternalLabeLp(cand)];
 
                     if (d < curdist) {
                         curdist = d;
