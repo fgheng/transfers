@@ -207,7 +207,7 @@ AlgorithmInterface<dist_t>::searchKnnCloserFirst(const void* query_data, size_t 
     std::vector<std::pair<dist_t, labeltype>> result;
 
     // here searchKnn returns the result in the order of further first
-    auto ret = searchKnn(query_data, k, isIdAllowed);
+    auto ret = searchKnn(query_data, k, 0.0, isIdAllowed);
     {
         size_t sz = ret.size();
         result.resize(sz);
