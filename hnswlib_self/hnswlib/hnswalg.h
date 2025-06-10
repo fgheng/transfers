@@ -1201,6 +1201,7 @@ class HierarchicalNSW : public AlgorithmInterface<dist_t> {
 
     void loadCodeBooks(const std::vector<std::vector<float>>& code_books) {
         pq_centroids_ = code_books;
+        hnswlib::codebooks = code_books;
     }
 
     void loadResiduals(const std::vector<float>& residuals) {

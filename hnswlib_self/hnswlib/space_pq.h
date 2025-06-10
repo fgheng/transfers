@@ -3,10 +3,11 @@
 
 namespace hnswlib {
 
+std::vector<std::vector<float>> codebooks;
 std::vector<std::vector<float>> dist_lookup;
 
 static float
-pq_distance(const void *pVect1v, const void *pVect2v, const void *qty_ptr) {
+sdc_pq_distance(const void *pVect1v, const void *pVect2v, const void *qty_ptr) {
   uint8_t *pv1 = (uint8_t *)pVect1v;
   uint8_t *pv2 = (uint8_t *)pVect2v;
 
@@ -27,6 +28,30 @@ pq_distance(const void *pVect1v, const void *pVect2v, const void *qty_ptr) {
   return res;
 }
 
+static float adc_pq_distance(const void *pVect1v, const void *pVect2v,
+                             const void *qty_ptr) {
+  float *pVect1 = (float *)pVect1v;
+  uint8_t *pVect2 = (uint8_t *)pVect2v;
+  size_t M = *((size_t *)qty_ptr);
+
+  int dim = 128;
+  int dsub = dim / M;
+
+  float res = 0;
+  for (size_t i = 0; i < M; i++) {
+    uint8_t code_books_idx = pVect2[i];
+    float* centroids = codebooks[i].data()+code_books_idx*dsub;
+
+    for (size_t j = 0; j < dsub; j++) {
+        float d1 = pVect1[i * dsub + j];
+        float d2 = centroids[j];
+        res += (d1 - d2) * (d1 - d2);
+    }
+  }
+
+  return res;
+}
+
 class PqSpace : public SpaceInterface<float> {
     DISTFUNC<float> fstdistfunc_;
     size_t data_size_;
@@ -34,7 +59,7 @@ class PqSpace : public SpaceInterface<float> {
 
  public:
     PqSpace(size_t dim) {
-        fstdistfunc_ = pq_distance;
+        fstdistfunc_ = adc_pq_distance;
         dim_ = dim;
         data_size_ = dim * sizeof(uint8_t);
     }
