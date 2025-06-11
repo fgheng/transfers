@@ -7,7 +7,7 @@ std::vector<std::vector<float>> codebooks;
 std::vector<std::vector<float>> dist_lookup;
 
 static float
-sdc_pq_distance(const void *pVect1v, const void *pVect2v, const void *qty_ptr) {
+sdc_pq_distance(const void *pVect1v, const void *pVect2v, const void *qty_ptr, float t) {
   uint8_t *pv1 = (uint8_t *)pVect1v;
   uint8_t *pv2 = (uint8_t *)pVect2v;
 
@@ -29,7 +29,7 @@ sdc_pq_distance(const void *pVect1v, const void *pVect2v, const void *qty_ptr) {
 }
 
 static float adc_pq_distance(const void *pVect1v, const void *pVect2v,
-                             const void *qty_ptr) {
+                             const void *qty_ptr, float t) {
   float *pVect1 = (float *)pVect1v;
   uint8_t *pVect2 = (uint8_t *)pVect2v;
   size_t M = *((size_t *)qty_ptr);

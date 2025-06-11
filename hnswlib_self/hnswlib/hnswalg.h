@@ -76,6 +76,8 @@ class HierarchicalNSW : public AlgorithmInterface<dist_t> {
     int pq_nbits_ = 0;
     int pq_dsub = 0;
     int pq_ks_ = 0;
+    float scale_ = 1.0;
+    float scale2_ = 1.0;
 
     std::vector<std::vector<float>> pq_centroids_;
     std::vector<float> pq_residuals_;
@@ -253,7 +255,7 @@ class HierarchicalNSW : public AlgorithmInterface<dist_t> {
 
         dist_t lowerBound;
         if (!isMarkedDeleted(ep_id)) {
-            dist_t dist = fstdistfunc_(data_point, getDataByInternalId(ep_id), dist_func_param_);
+            dist_t dist = fstdistfunc_(data_point, getDataByInternalId(ep_id), dist_func_param_, scale2_);
             top_candidates.emplace(dist, ep_id);
             lowerBound = dist;
             candidateSet.emplace(-dist, ep_id);
@@ -301,7 +303,7 @@ class HierarchicalNSW : public AlgorithmInterface<dist_t> {
                 visited_array[candidate_id] = visited_array_tag;
                 char *currObj1 = (getDataByInternalId(candidate_id));
 
-                dist_t dist1 = fstdistfunc_(data_point, currObj1, dist_func_param_);
+                dist_t dist1 = fstdistfunc_(data_point, currObj1, dist_func_param_, scale2_);
                 if (top_candidates.size() < ef_construction_ || lowerBound > dist1) {
                     candidateSet.emplace(-dist1, candidate_id);
 #ifdef USE_SSE
@@ -346,7 +348,7 @@ class HierarchicalNSW : public AlgorithmInterface<dist_t> {
         if (bare_bone_search || 
             (!isMarkedDeleted(ep_id) && ((!isIdAllowed) || (*isIdAllowed)(getExternalLabel(ep_id))))) {
             char* ep_data = getDataByInternalId(ep_id);
-            dist_t dist = fstdistfunc_(data_point, ep_data, dist_func_param_);
+            dist_t dist = fstdistfunc_(data_point, ep_data, dist_func_param_, scale2_);
                     // add residuals
                     // dist += q_residual;
                     // dist += pq_residuals_[*getExternalLabeLp(ep_id)];
@@ -410,7 +412,7 @@ class HierarchicalNSW : public AlgorithmInterface<dist_t> {
                     visited_array[candidate_id] = visited_array_tag;
 
                     char *currObj1 = (getDataByInternalId(candidate_id));
-                    dist_t dist = fstdistfunc_(data_point, currObj1, dist_func_param_);
+                    dist_t dist = fstdistfunc_(data_point, currObj1, dist_func_param_, scale2_);
                     // add residuals
                     // dist += q_residual;
                     // dist += pq_residuals_[*getExternalLabeLp(candidate_id)];
@@ -493,7 +495,7 @@ class HierarchicalNSW : public AlgorithmInterface<dist_t> {
                 dist_t curdist =
                         fstdistfunc_(getDataByInternalId(second_pair.second),
                                         getDataByInternalId(curent_pair.second),
-                                        dist_func_param_);
+                                        dist_func_param_, scale2_);
                 if (curdist < dist_to_query) {
                     good = false;
                     break;
@@ -619,7 +621,7 @@ class HierarchicalNSW : public AlgorithmInterface<dist_t> {
                     // 存在当前点不是邻居最合适的点的请，所以也就导致了hnsw 图不一定是一个完全的双向图
                     // finding the "weakest" element to replace it with the new one
                     dist_t d_max = fstdistfunc_(getDataByInternalId(cur_c), getDataByInternalId(selectedNeighbors[idx]),
-                                                dist_func_param_);
+                                                dist_func_param_, scale2_);
                     // Heuristic:
                     std::priority_queue<std::pair<dist_t, tableint>, std::vector<std::pair<dist_t, tableint>>, CompareByFirst> candidates;
                     candidates.emplace(d_max, cur_c);
@@ -627,7 +629,7 @@ class HierarchicalNSW : public AlgorithmInterface<dist_t> {
                     for (size_t j = 0; j < sz_link_list_other; j++) {
                         candidates.emplace(
                                 fstdistfunc_(getDataByInternalId(data[j]), getDataByInternalId(selectedNeighbors[idx]),
-                                                dist_func_param_), data[j]);
+                                                dist_func_param_, scale2_), data[j]);
                     }
 
                     getNeighborsByHeuristic2(candidates, Mcurmax);
@@ -1251,6 +1253,71 @@ class HierarchicalNSW : public AlgorithmInterface<dist_t> {
       }
     }
 
+    float calMax() {
+        float max_ = 0.0;
+        float per = 0.9;
+        int64_t top_n = (1.0-per)*max_elements_;
+
+        std::priority_queue<float, std::vector<float>, std::greater<float>> top_candidates;
+        size_t dim = *((size_t *) dist_func_param_);
+        for (size_t i = 0; i < max_elements_; i++) {
+            char* data_ptrv = getDataByInternalId(i);
+            float* data_ptr = (float*) data_ptrv;
+            for (size_t i = 0; i < dim; i++) {
+                float abs_val = data_ptr[i] > 0 ? data_ptr[i] : -data_ptr[i];
+                if (top_candidates.size() < top_n) {
+                    top_candidates.push(abs_val);
+                } 
+                if (top_candidates.size() == top_n) {
+                    float min_val = top_candidates.top();
+                    if (abs_val > min_val) {
+                        top_candidates.pop();
+                        top_candidates.push(abs_val);
+                    }
+                }
+            }
+        }
+
+        float max_val = top_candidates.top();
+
+        while (max_val <= 0 && !top_candidates.empty()) {
+            max_val = top_candidates.top();
+            top_candidates.pop();
+        }
+
+        return max_val;
+    }
+
+    void convertVectorInplace(char* data_ptr) {
+        size_t dim = *((size_t *) dist_func_param_);
+        std::vector<int8_t> tmp_v(dim);
+
+        float* data_ptrf = (float*) data_ptr;
+        for (size_t i = 0; i < dim; i++) {
+            float scaled_x = data_ptrf[i] * scale_;
+            if (scaled_x > 127) {
+                scaled_x = 127;
+            } else if (scaled_x <= -128) {
+                scaled_x = -128;
+            }
+
+            tmp_v[i] = (int8_t)(scaled_x);
+        }
+
+        memcpy(data_ptr, tmp_v.data(), dim);
+    }
+
+    void sq8() {
+        float max_val = calMax();
+        scale_ = 127 / max_val;
+        scale2_ = scale_ * scale_;
+#pragma omp parallel for
+        for (int i = 0; i < max_elements_; i++) {
+            char* data_ptrv = getDataByInternalId(i);
+            convertVectorInplace(data_ptrv );
+        }
+    }
+
     template<typename data_t>
     std::vector<data_t> getDataByLabel(labeltype label) const {
         // lock all operations with element by label
@@ -1490,7 +1557,7 @@ class HierarchicalNSW : public AlgorithmInterface<dist_t> {
                     if (cand == neigh)
                         continue;
 
-                    dist_t distance = fstdistfunc_(getDataByInternalId(neigh), getDataByInternalId(cand), dist_func_param_);
+                    dist_t distance = fstdistfunc_(getDataByInternalId(neigh), getDataByInternalId(cand), dist_func_param_, scale2_);
                     if (candidates.size() < elementsToKeep) {
                         candidates.emplace(distance, cand);
                     } else {
@@ -1531,7 +1598,7 @@ class HierarchicalNSW : public AlgorithmInterface<dist_t> {
         int maxLevel) {
         tableint currObj = entryPointInternalId;
         if (dataPointLevel < maxLevel) {
-            dist_t curdist = fstdistfunc_(dataPoint, getDataByInternalId(currObj), dist_func_param_);
+            dist_t curdist = fstdistfunc_(dataPoint, getDataByInternalId(currObj), dist_func_param_, scale2_);
             for (int level = maxLevel; level > dataPointLevel; level--) {
                 bool changed = true;
                 while (changed) {
@@ -1549,7 +1616,7 @@ class HierarchicalNSW : public AlgorithmInterface<dist_t> {
                         _mm_prefetch(getDataByInternalId(*(datal + i + 1)), _MM_HINT_T0);
 #endif
                         tableint cand = datal[i];
-                        dist_t d = fstdistfunc_(dataPoint, getDataByInternalId(cand), dist_func_param_);
+                        dist_t d = fstdistfunc_(dataPoint, getDataByInternalId(cand), dist_func_param_, scale2_);
                         if (d < curdist) {
                             curdist = d;
                             currObj = cand;
@@ -1580,7 +1647,7 @@ class HierarchicalNSW : public AlgorithmInterface<dist_t> {
             if (filteredTopCandidates.size() > 0) {
                 bool epDeleted = isMarkedDeleted(entryPointInternalId);
                 if (epDeleted) {
-                    filteredTopCandidates.emplace(fstdistfunc_(dataPoint, getDataByInternalId(entryPointInternalId), dist_func_param_), entryPointInternalId);
+                    filteredTopCandidates.emplace(fstdistfunc_(dataPoint, getDataByInternalId(entryPointInternalId), dist_func_param_, scale2_), entryPointInternalId);
                     if (filteredTopCandidates.size() > ef_construction_)
                         filteredTopCandidates.pop();
                 }
@@ -1664,7 +1731,7 @@ class HierarchicalNSW : public AlgorithmInterface<dist_t> {
 
         if ((signed)currObj != -1) {
             if (curlevel < maxlevelcopy) { // 寻找到当前层的进入点
-                dist_t curdist = fstdistfunc_(data_point, getDataByInternalId(currObj), dist_func_param_);
+                dist_t curdist = fstdistfunc_(data_point, getDataByInternalId(currObj), dist_func_param_, scale2_);
                 for (int level = maxlevelcopy; level > curlevel; level--) {
                     bool changed = true;
                     while (changed) {
@@ -1679,7 +1746,7 @@ class HierarchicalNSW : public AlgorithmInterface<dist_t> {
                             tableint cand = datal[i];
                             if (cand < 0 || cand > max_elements_)
                                 throw std::runtime_error("cand error");
-                            dist_t d = fstdistfunc_(data_point, getDataByInternalId(cand), dist_func_param_);
+                            dist_t d = fstdistfunc_(data_point, getDataByInternalId(cand), dist_func_param_, scale2_);
                             if (d < curdist) {
                                 curdist = d;
                                 currObj = cand;
@@ -1699,7 +1766,7 @@ class HierarchicalNSW : public AlgorithmInterface<dist_t> {
                 std::priority_queue<std::pair<dist_t, tableint>, std::vector<std::pair<dist_t, tableint>>, CompareByFirst> top_candidates = searchBaseLayer(
                         currObj, data_point, level);
                 if (epDeleted) {
-                    top_candidates.emplace(fstdistfunc_(data_point, getDataByInternalId(enterpoint_copy), dist_func_param_), enterpoint_copy);
+                    top_candidates.emplace(fstdistfunc_(data_point, getDataByInternalId(enterpoint_copy), dist_func_param_, scale2_), enterpoint_copy);
                     if (top_candidates.size() > ef_construction_)
                         top_candidates.pop();
                 }
@@ -1727,7 +1794,7 @@ class HierarchicalNSW : public AlgorithmInterface<dist_t> {
         if (cur_element_count == 0) return result;
 
         tableint currObj = enterpoint_node_;
-        dist_t curdist = fstdistfunc_(query_data, getDataByInternalId(enterpoint_node_), dist_func_param_);
+        dist_t curdist = fstdistfunc_(query_data, getDataByInternalId(enterpoint_node_), dist_func_param_, scale2_);
         // add residuals
         // curdist += q_residual;
         // curdist += pq_residuals_[*getExternalLabeLp(enterpoint_node_)];
@@ -1748,7 +1815,7 @@ class HierarchicalNSW : public AlgorithmInterface<dist_t> {
                     tableint cand = datal[i];
                     if (cand < 0 || cand > max_elements_)
                         throw std::runtime_error("cand error");
-                    dist_t d = fstdistfunc_(query_data, getDataByInternalId(cand), dist_func_param_);
+                    dist_t d = fstdistfunc_(query_data, getDataByInternalId(cand), dist_func_param_, scale2_);
                     // add residuals
                     // d += q_residual;
                     // d += pq_residuals_[*getExternalLabeLp(cand)];
@@ -1793,7 +1860,7 @@ class HierarchicalNSW : public AlgorithmInterface<dist_t> {
         if (cur_element_count == 0) return result;
 
         tableint currObj = enterpoint_node_;
-        dist_t curdist = fstdistfunc_(query_data, getDataByInternalId(enterpoint_node_), dist_func_param_);
+        dist_t curdist = fstdistfunc_(query_data, getDataByInternalId(enterpoint_node_), dist_func_param_, scale2_);
 
         for (int level = maxlevel_; level > 0; level--) {
             bool changed = true;
@@ -1811,7 +1878,7 @@ class HierarchicalNSW : public AlgorithmInterface<dist_t> {
                     tableint cand = datal[i];
                     if (cand < 0 || cand > max_elements_)
                         throw std::runtime_error("cand error");
-                    dist_t d = fstdistfunc_(query_data, getDataByInternalId(cand), dist_func_param_);
+                    dist_t d = fstdistfunc_(query_data, getDataByInternalId(cand), dist_func_param_, scale2_);
 
                     if (d < curdist) {
                         curdist = d;
