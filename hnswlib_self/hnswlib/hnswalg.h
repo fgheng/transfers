@@ -471,8 +471,10 @@ class HierarchicalNSW : public AlgorithmInterface<dist_t> {
 
     void getNeighborsByHeuristic2(
         std::priority_queue<std::pair<dist_t, tableint>, std::vector<std::pair<dist_t, tableint>>, CompareByFirst> &top_candidates,
-        const size_t M) {
-        if (top_candidates.size() < M) {
+        const size_t M, size_t lm = 0) {
+        if (lm == 0) lm = M;
+
+        if (top_candidates.size() < lm) {
             return;
         }
 
@@ -1214,7 +1216,7 @@ class HierarchicalNSW : public AlgorithmInterface<dist_t> {
             top_candidates.push(std::make_pair(distance, neighbour_internal_id));
         }
 
-        getNeighborsByHeuristic2(top_candidates, level == 0 ? maxM0_ : maxM_);
+        getNeighborsByHeuristic2(top_candidates, level == 0 ? maxM0_ : maxM_, current_m/2);
         std::vector<tableint>().swap(internal_neighbours);
         while (!top_candidates.empty()) {
             internal_neighbours.push_back(top_candidates.top().second);
