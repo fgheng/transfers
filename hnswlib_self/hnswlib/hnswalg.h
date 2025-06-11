@@ -1288,6 +1288,10 @@ class HierarchicalNSW : public AlgorithmInterface<dist_t> {
         return max_val;
     }
 
+    float getScale() {
+        return scale_;
+    }
+
     void convertVectorInplace(char* data_ptr) {
         size_t dim = *((size_t *) dist_func_param_);
         std::vector<int8_t> tmp_v(dim);
