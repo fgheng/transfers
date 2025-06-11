@@ -68,7 +68,7 @@ class SpaceInt8 : public SpaceInterface<float> {
         return &dim_;
     }
 
-~InnerProductSpace() {}
+    ~SpaceInt8() {}
 };
 
 }  // namespace hnswlib
