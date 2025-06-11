@@ -1144,7 +1144,7 @@ class HierarchicalNSW : public AlgorithmInterface<dist_t> {
             auto& internal_neighbours = merge_graph[i].internal_neighbours_;
             for (int level = 0; level <= cur_max_level; level++) {
                 auto& internal_neighbours_level = internal_neighbours[level];
-                mergeSelectNeighbors(i, internal_neighbours_level);
+                mergeSelectNeighbors(i, internal_neighbours_level, level);
                 // std::shuffle(internal_neighbours_level.begin(), internal_neighbours_level.end(), urng);
 
                 if (level == 0) {
@@ -1171,7 +1171,12 @@ class HierarchicalNSW : public AlgorithmInterface<dist_t> {
         std::cout << "enter point node: " << enterpoint_node_ << std::endl;
     }
 
-    void mergeSelectNeighbors(tableint home, std::vector<tableint>& internal_neighbours) {
+    void mergeSelectNeighbors(tableint home, std::vector<tableint>& internal_neighbours, int level) {
+        int current_m = level == 0 ? maxM0_ : maxM_;
+        if (internal_neighbours.size() <= current_m) {
+            return;
+        }
+
         // 方案 1：去重后随机选择
         // std::sort(internal_neighbours.begin(), internal_neighbours.end());
         // auto it = std::unique(internal_neighbours.begin(), internal_neighbours.end());
@@ -1203,11 +1208,13 @@ class HierarchicalNSW : public AlgorithmInterface<dist_t> {
 // #pragma omp parallel for
         for (int i = 0; i < internal_neighbours.size(); i++) {
             tableint neighbour_internal_id = internal_neighbours[i];
-            dist_t distance = fstdistfunc_(getDataByInternalId(home), 
+            dist_t distance = fstdistfunc_(
+                    getDataByInternalId(home), 
                     getDataByInternalId(neighbour_internal_id), dist_func_param_, scale2_);
             top_candidates.push(std::make_pair(distance, neighbour_internal_id));
         }
-        getNeighborsByHeuristic2(top_candidates, maxM0_);
+
+        getNeighborsByHeuristic2(top_candidates, level == 0 ? maxM0_ : maxM_);
         std::vector<tableint>().swap(internal_neighbours);
         while (!top_candidates.empty()) {
             internal_neighbours.push_back(top_candidates.top().second);
