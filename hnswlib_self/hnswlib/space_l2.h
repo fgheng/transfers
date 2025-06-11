@@ -150,7 +150,7 @@ static float
 L2SqrSIMD16ExtResiduals(const void *pVect1v, const void *pVect2v, const void *qty_ptr, float t) {
     size_t qty = *((size_t *) qty_ptr);
     size_t qty16 = qty >> 4 << 4;
-    float res = L2SqrSIMD16Ext(pVect1v, pVect2v, &qty16);
+    float res = L2SqrSIMD16Ext(pVect1v, pVect2v, &qty16, t);
     float *pVect1 = (float *) pVect1v + qty16;
     float *pVect2 = (float *) pVect2v + qty16;
 
