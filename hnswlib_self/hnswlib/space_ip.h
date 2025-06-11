@@ -245,7 +245,7 @@ InnerProductSIMD16ExtAVX(const void *pVect1v, const void *pVect2v, const void *q
 
 static float
 InnerProductDistanceSIMD16ExtAVX(const void *pVect1v, const void *pVect2v, const void *qty_ptr, float t) {
-    return 1.0f - InnerProductSIMD16ExtAVX(pVect1v, pVect2v, qty_ptr);
+    return 1.0f - InnerProductSIMD16ExtAVX(pVect1v, pVect2v, qty_ptr, t);
 }
 
 #endif
