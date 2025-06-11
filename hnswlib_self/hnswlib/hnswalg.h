@@ -1173,7 +1173,7 @@ class HierarchicalNSW : public AlgorithmInterface<dist_t> {
 
     void mergeSelectNeighbors(tableint home, std::vector<tableint>& internal_neighbours, int level) {
         int current_m = level == 0 ? maxM0_ : maxM_;
-        if (internal_neighbours.size() <= current_m) {
+        if (internal_neighbours.size() <= current_m/2) {
             return;
         }
 
