@@ -564,7 +564,7 @@ class HierarchicalNSW : public AlgorithmInterface<dist_t> {
             if (level == 0)
                 ll_cur = get_linklist0(cur_c); // 获取 level0 的数据，包括邻居，数据，外部 id
             else
-                ll_cur = get_linklist(cur_c, level);  // 获取 level 层的邻居数据 
+                ll_cur = get_linklist(cur_c, level);  // 获取 level 层的邻居数据
 
             if (*ll_cur && !isUpdate) {
                 throw std::runtime_error("The newly inserted element should have blank link list");
@@ -1170,7 +1170,50 @@ class HierarchicalNSW : public AlgorithmInterface<dist_t> {
             }
         }
         std::cout << "enter point node: " << enterpoint_node_ << std::endl;
+
+        // 增加反向连边，
+        // 方案 1. 在构图结束后，从 id=0 开始进行反向连接
+        // 方案 2. 在构图结束后，根据入度进行排列，入度小的首先进行选择
+        // 方案 3. 在构图前根据入度进行排序，然后选择 
+        std::cout << "add reverse edges" << std::endl;
+        for (int i = 0; i < merge_graph.size(); i++) {
+            auto max_level = element_levels_[i];
+            for (int level = 0; level <= max_level; level++) {
+                linklistsizeint* ll_cur = get_linklist_by_level(i, level);
+                tableint* data_neighbours = (tableint*)(ll_cur+1);
+                for (linklistsizeint j = 0; j < *ll_cur; j++) {
+                    tableint internal_id_neighbour = data_neighbours[j];
+                    linklistsizeint* ll_cur_nei = get_linklist_by_level(internal_id_neighbour, level);
+                    tableint* data_nei = (tableint*)(ll_cur_nei+1);
+
+                    auto m = level == 0 ? maxM0_ : maxM_;
+                    if (*ll_cur_nei < m) {
+                        bool found = false;
+                        for (linklistsizeint k = 0; k < *ll_cur_nei; k++) {
+                            if (data_nei[k] == i) {
+                                found = true;
+                                break;
+                            }
+                        }
+
+                        if (!found) {
+                            data_nei[*ll_cur_nei] = i;
+                            *ll_cur_nei = *ll_cur_nei + 1;
+                        }
+                    }
+                }
+            }
+        }
     }
+
+    linklistsizeint *get_linklist_by_level(tableint internal_id, int level) const {
+        if (level == 0) {
+            return get_linklist0(internal_id);
+        } else {
+            return get_linklist(internal_id, level);
+        }
+    }
+
 
     void mergeSelectNeighbors(tableint home, std::vector<tableint>& internal_neighbours, int level) {
         int current_m = level == 0 ? maxM0_ : maxM_;
@@ -1224,6 +1267,9 @@ class HierarchicalNSW : public AlgorithmInterface<dist_t> {
             internal_neighbours.push_back(top_candidates.top().second);
             top_candidates.pop();
         }
+
+        // 方案 4
+        // 增加反向连边
     }
 
     void loadCodeBooks(const std::vector<std::vector<float>>& code_books) {
