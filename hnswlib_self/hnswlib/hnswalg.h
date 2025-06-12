@@ -1216,10 +1216,10 @@ class HierarchicalNSW : public AlgorithmInterface<dist_t> {
 
 
     void mergeSelectNeighbors(tableint home, std::vector<tableint>& internal_neighbours, int level) {
-        int current_m = level == 0 ? maxM0_ : maxM_;
-        if (internal_neighbours.size() <= current_m/2) {
-            return;
-        }
+        // int current_m = level == 0 ? maxM0_ : maxM_;
+        // if (internal_neighbours.size() <= current_m/2) {
+        //     return;
+        // }
 
         // 方案 1：去重后随机选择
         // std::sort(internal_neighbours.begin(), internal_neighbours.end());
@@ -1229,44 +1229,44 @@ class HierarchicalNSW : public AlgorithmInterface<dist_t> {
         // std::mt19937 urng(rng());
         // std::shuffle(internal_neighbours.begin(), internal_neighbours.end(), urng);
 
-        // // 方案 2：按照 id 排序，重复多的放到最前面
-        // std::unordered_map<tableint, int> count_map;
-        // for (auto& internal_id : internal_neighbours) {
-        //     count_map[internal_id]++;
-        // }
-        // std::vector<std::pair<tableint, int>> count_neighbours(count_map.begin(), count_map.end());
-        // std::sort(count_neighbours.begin(), count_neighbours.end(), [](const auto &left, const auto &right) {
-        //     return left.second > right.second;
-        // });
-        //
-        // std::vector<tableint>().swap(internal_neighbours);  // 清空并释放内存
-        // internal_neighbours.push_back(count_neighbours[0].first);  // 重复最多的放到最前面
-        // for (int i = 1; i < count_neighbours.size(); i++) {
-        //     if (count_neighbours[i].first != count_neighbours[i-1].first) {
-        //         internal_neighbours.push_back(count_neighbours[i].first);
-        //     }
-        // }
-
-        if (internal_neighbours.size() >= 32 ) {
-            return;
+        // 方案 2：按照 id 排序，重复多的放到最前面
+        std::unordered_map<tableint, int> count_map;
+        for (auto& internal_id : internal_neighbours) {
+            count_map[internal_id]++;
         }
-        // 方案 3：启发式选择
-        std::priority_queue<std::pair<dist_t, tableint>, std::vector<std::pair<dist_t, tableint>>, CompareByFirst> top_candidates;
-// #pragma omp parallel for
-        for (int i = 0; i < internal_neighbours.size(); i++) {
-            tableint neighbour_internal_id = internal_neighbours[i];
-            dist_t distance = fstdistfunc_(
-                    getDataByInternalId(home), 
-                    getDataByInternalId(neighbour_internal_id), dist_func_param_, scale2_);
-            top_candidates.push(std::make_pair(distance, neighbour_internal_id));
+        std::vector<std::pair<tableint, int>> count_neighbours(count_map.begin(), count_map.end());
+        std::sort(count_neighbours.begin(), count_neighbours.end(), [](const auto &left, const auto &right) {
+            return left.second > right.second;
+        });
+
+        std::vector<tableint>().swap(internal_neighbours);  // 清空并释放内存
+        internal_neighbours.push_back(count_neighbours[0].first);  // 重复最多的放到最前面
+        for (int i = 1; i < count_neighbours.size(); i++) {
+            if (count_neighbours[i].first != count_neighbours[i-1].first) {
+                internal_neighbours.push_back(count_neighbours[i].first);
+            }
         }
 
-        getNeighborsByHeuristic2(top_candidates, level == 0 ? maxM0_ : maxM_);
-        std::vector<tableint>().swap(internal_neighbours);
-        while (!top_candidates.empty()) {
-            internal_neighbours.push_back(top_candidates.top().second);
-            top_candidates.pop();
-        }
+//         // 方案 3：启发式选择
+//         if (internal_neighbours.size() >= 32 ) {
+//             return;
+//         }
+//         std::priority_queue<std::pair<dist_t, tableint>, std::vector<std::pair<dist_t, tableint>>, CompareByFirst> top_candidates;
+// // #pragma omp parallel for
+//         for (int i = 0; i < internal_neighbours.size(); i++) {
+//             tableint neighbour_internal_id = internal_neighbours[i];
+//             dist_t distance = fstdistfunc_(
+//                     getDataByInternalId(home), 
+//                     getDataByInternalId(neighbour_internal_id), dist_func_param_, scale2_);
+//             top_candidates.push(std::make_pair(distance, neighbour_internal_id));
+//         }
+//
+//         getNeighborsByHeuristic2(top_candidates, level == 0 ? maxM0_ : maxM_);
+//         std::vector<tableint>().swap(internal_neighbours);
+//         while (!top_candidates.empty()) {
+//             internal_neighbours.push_back(top_candidates.top().second);
+//             top_candidates.pop();
+//         }
 
         // 方案 4
         // 增加反向连边
