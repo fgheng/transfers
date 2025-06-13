@@ -1038,6 +1038,11 @@ class HierarchicalNSW : public AlgorithmInterface<dist_t> {
                 cur_max_level = graph[i].max_level_;
                 current_external_label = graph[i].external_label_;
             }
+
+            // 更新 maxlevel_
+            if (cur_max_level > maxlevel_) {
+                maxlevel_ = cur_max_level;
+            }
         }
         merge_graph[current_internal_label].external_neighbours_.resize(cur_max_level+1);
         merge_graph[current_internal_label].internal_neighbours_.resize(cur_max_level+1);
@@ -1088,7 +1093,7 @@ class HierarchicalNSW : public AlgorithmInterface<dist_t> {
             }
         }
 
-        // 去重
+        // // 去重
         // std::cout << "unique" << std::endl;
         // for (auto& node: merge_graph) {
         //     auto& external_neighbours = node.external_neighbours_;
@@ -1100,8 +1105,9 @@ class HierarchicalNSW : public AlgorithmInterface<dist_t> {
         //     }
         // }
 
-        std::cout << "merge graph size: " << merge_graph.size() << std::endl;
+
         // 检查 max_level跟实际的邻居数量是否一致 
+        std::cout << "merge graph size: " << merge_graph.size() << std::endl;
         for (int i = 0; i < merge_graph.size(); i++) {
             if (merge_graph[i].max_level_ != merge_graph[i].external_neighbours_.size() - 1) {
                 std::cout << "The edges are not consistent: max_level: " << merge_graph[i].max_level_ << " neighbours size: " << merge_graph[i].external_neighbours_.size() << std::endl;
@@ -1109,6 +1115,7 @@ class HierarchicalNSW : public AlgorithmInterface<dist_t> {
             }
         }
 
+        // 添加反向边
         std::cout << "reconnect" << std::endl;
         for (int i = 0; i < merge_graph.size(); i++) {
             auto external_label = merge_graph[i].external_label_;
@@ -1135,6 +1142,14 @@ class HierarchicalNSW : public AlgorithmInterface<dist_t> {
                 }
             }
         }
+
+        // // 获取所有点在每层的入度
+        // std::cout << "call indegree" << std::endl;
+        // std::vector<std::vector<linklistsizeint>> in_degrees(max_elements_);
+        // for (int i = 0; i < graph.size(); i++) {
+        //
+        // }
+        // callInDegrees(in_degrees, maxlevel_);
 
 
         std::cout << "map internal id" << std::endl;
@@ -1337,8 +1352,17 @@ class HierarchicalNSW : public AlgorithmInterface<dist_t> {
         }
 
         // // 方案 4，按照邻居的入度来删减, 邻居入度少的优先留下
+        // // 需要整个图提前去重
+        // int current_m = level == 0 ? maxM0_ : maxM_;
+        // if ((level == 0 && internal_neighbours.size() < maxM0_) ||
+        //     (level > 0 && internal_neighbours.size() < maxM_)) {
+        //     // 数量少直接去重
+        //     std::sort(internal_neighbours.begin(), internal_neighbours.end());
+        //     auto it = std::unique(internal_neighbours.begin(), internal_neighbours.end());
+        //     internal_neighbours.erase(it, internal_neighbours.end());
+        //     return;
+        // }
         // std::vector<int> in_degree(max_elements_, 0);
-        // // 计算level0入度，并排序，从入度最小的开始选择
         // for (tableint i = 0; i < max_elements_; i++) {
         //     linklistsizeint* ll_cur = get_linklist0(i);
         //
@@ -1373,6 +1397,17 @@ class HierarchicalNSW : public AlgorithmInterface<dist_t> {
 
         // 方案 4
         // 增加反向连边
+    }
+
+    // 计算某一层的入度
+    void calInDegrees(std::vector<std::vector<linklistsizeint>>& in_degree) {
+        for (int i = 0; i < max_elements_; i++) {
+            linklistsizeint* ll_cur = get_linklist_by_level(i, level);
+
+            if (ll_cur == nullptr) {
+                in_degree[i] = 0;
+            }
+        }
     }
 
     void loadCodeBooks(const std::vector<std::vector<float>>& code_books) {
