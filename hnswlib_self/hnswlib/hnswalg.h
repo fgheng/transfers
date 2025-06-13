@@ -1230,6 +1230,10 @@ class HierarchicalNSW : public AlgorithmInterface<dist_t> {
         // std::shuffle(internal_neighbours.begin(), internal_neighbours.end(), urng);
 
         // 方案 2：按照 id 排序，重复多的放到最前面
+        if ((level == 0 && internal_neighbours.size() < maxM0_) ||
+            (level > 0 && internal_neighbours.size() < maxM_)) {
+            return;
+        }
         std::unordered_map<tableint, int> count_map;
         for (auto& internal_id : internal_neighbours) {
             count_map[internal_id]++;
