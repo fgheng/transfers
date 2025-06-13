@@ -730,6 +730,7 @@ class HierarchicalNSW : public AlgorithmInterface<dist_t> {
     }
 
     void saveIndex(const std::string &location) {
+        std::cout << "max level: " << maxlevel_ << std::endl;
         std::ofstream output(location, std::ios::binary);
         std::streampos position;
 
