@@ -152,7 +152,8 @@ class HierarchicalNSW : public AlgorithmInterface<dist_t> {
         if (linkLists_ == nullptr)
             throw std::runtime_error("Not enough memory: HierarchicalNSW failed to allocate linklists");
         size_links_per_element_ = maxM_ * sizeof(tableint) + sizeof(linklistsizeint);
-        mult_ = 1 / log(1.0 * M_);
+        // mult_ = 1 / log(1.0 * M_);
+        mult_ = 1 / log(1.0 * 32);
         revSize_ = 1.0 / mult_;
     }
 
