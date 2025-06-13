@@ -542,7 +542,7 @@ class HierarchicalNSW : public AlgorithmInterface<dist_t> {
         bool use_heuristic2 = true) {
         size_t Mcurmax = level ? maxM_ : maxM0_;
         if (use_heuristic2) getNeighborsByHeuristic2(top_candidates, M_);  // 启发式算法找到 M 个邻居
-        if (top_candidates.size() > M_)
+        if (use_heuristic2 && top_candidates.size() > M_)
             throw std::runtime_error("Should be not be more than M_ candidates returned by the heuristic");
 
         std::vector<tableint> selectedNeighbors;
