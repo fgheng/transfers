@@ -1114,33 +1114,33 @@ class HierarchicalNSW : public AlgorithmInterface<dist_t> {
             }
         }
 
-        // 添加反向边
-        std::cout << "reconnect" << std::endl;
-        for (int i = 0; i < merge_graph.size(); i++) {
-            auto external_label = merge_graph[i].external_label_;
-            auto& external_neighbours = merge_graph[i].external_neighbours_;
-            for (int level = 0; level <= merge_graph[i].max_level_; level++) {
-                auto& external_neighbours_level = external_neighbours[level];
-                for (int j = 0; j < external_neighbours_level.size(); j++) {
-                    auto neighbour_external_id = external_neighbours_level[j];
-                    auto neighbour_internal_id = external_label_to_internal_id.find(neighbour_external_id);
-
-                    auto& neighbour_node = merge_graph[neighbour_internal_id->second];
-                    auto& neighbour_node_external_neighbours_level = neighbour_node.external_neighbours_[level];
-                    bool update = true;
-                    for (int k = 0; k < neighbour_node_external_neighbours_level.size(); k++) {
-                        if (neighbour_node_external_neighbours_level[k] == external_label) {
-                            update = false;
-                            break;
-                        }
-                    }
-
-                    if (update) {
-                        neighbour_node_external_neighbours_level.push_back(external_label);
-                    }
-                }
-            }
-        }
+        // // 添加反向边
+        // std::cout << "reconnect" << std::endl;
+        // for (int i = 0; i < merge_graph.size(); i++) {
+        //     auto external_label = merge_graph[i].external_label_;
+        //     auto& external_neighbours = merge_graph[i].external_neighbours_;
+        //     for (int level = 0; level <= merge_graph[i].max_level_; level++) {
+        //         auto& external_neighbours_level = external_neighbours[level];
+        //         for (int j = 0; j < external_neighbours_level.size(); j++) {
+        //             auto neighbour_external_id = external_neighbours_level[j];
+        //             auto neighbour_internal_id = external_label_to_internal_id.find(neighbour_external_id);
+        //
+        //             auto& neighbour_node = merge_graph[neighbour_internal_id->second];
+        //             auto& neighbour_node_external_neighbours_level = neighbour_node.external_neighbours_[level];
+        //             bool update = true;
+        //             for (int k = 0; k < neighbour_node_external_neighbours_level.size(); k++) {
+        //                 if (neighbour_node_external_neighbours_level[k] == external_label) {
+        //                     update = false;
+        //                     break;
+        //                 }
+        //             }
+        //
+        //             if (update) {
+        //                 neighbour_node_external_neighbours_level.push_back(external_label);
+        //             }
+        //         }
+        //     }
+        // }
 
 
         // 映射内部 id
@@ -1169,12 +1169,12 @@ class HierarchicalNSW : public AlgorithmInterface<dist_t> {
         // 获取去重后所有点在level0的入度
         std::cout << "call indegree level0" << std::endl;
         std::vector<linklistsizeint> in_degrees(max_elements_);
-        for (int i = 0; i < merge_graph.size(); i++) {
-            auto& internal_neighbours = merge_graph[i].internal_neighbours_;
-            for (auto& internal_neighbours_id: internal_neighbours[0]) {
-                in_degrees[internal_neighbours_id]++;
-            }
-        }
+        // for (int i = 0; i < merge_graph.size(); i++) {
+        //     auto& internal_neighbours = merge_graph[i].internal_neighbours_;
+        //     for (auto& internal_neighbours_id: internal_neighbours[0]) {
+        //         in_degrees[internal_neighbours_id]++;
+        //     }
+        // }
 
         std::cout << "fill edges" << std::endl;
         // 填充邻居
@@ -1312,20 +1312,21 @@ class HierarchicalNSW : public AlgorithmInterface<dist_t> {
     void mergeSelectNeighbors(tableint home, std::vector<tableint>& internal_neighbours, int level, std::vector<linklistsizeint>& in_degree) {
 
 
-        // // 方案 1：去重后随机选择
-        // {
-        //     int current_m = level == 0 ? maxM0_ : maxM_;
-        //     if (internal_neighbours.size() <= current_m) {
-        //         return;
-        //     }
-        //     std::sort(internal_neighbours.begin(), internal_neighbours.end());
-        //     auto it = std::unique(internal_neighbours.begin(), internal_neighbours.end());
-        //     internal_neighbours.erase(it, internal_neighbours.end());
-        //     std::random_device rng;
-        //     std::mt19937 urng(rng());
-        //     std::shuffle(internal_neighbours.begin(), internal_neighbours.end(), urng);
-        //     internal_neighbours.resize(current_m);
-        // }
+        // 方案 1：去重后随机选择
+        // 提前去重
+        {
+            int current_m = level == 0 ? maxM0_ : maxM_;
+            std::sort(internal_neighbours.begin(), internal_neighbours.end());
+            auto it = std::unique(internal_neighbours.begin(), internal_neighbours.end());
+            internal_neighbours.erase(it, internal_neighbours.end());
+            if (internal_neighbours.size() <= current_m) {
+                return;
+            }
+            std::random_device rng;
+            std::mt19937 urng(rng());
+            std::shuffle(internal_neighbours.begin(), internal_neighbours.end(), urng);
+            internal_neighbours.resize(current_m);
+        }
 
         // // 方案 2：按照 id 排序，重复多的放到最前面
         // int current_m = level == 0 ? maxM0_ : maxM_;
@@ -1357,44 +1358,44 @@ class HierarchicalNSW : public AlgorithmInterface<dist_t> {
         //     }
         // }
 
-        // 方案 3，按照邻居的入度来删减, 邻居入度少的优先留下
-        // 需要整个图提前去重
-        {
-            int current_m = level == 0 ? maxM0_ : maxM_;
-            if ((level == 0 && internal_neighbours.size() <= maxM0_) ||
-                (level > 0 && internal_neighbours.size() <= maxM_)) {
-                // 数量少直接返回
-                return;
-            }
-
-            // 上层的采用随机选择的方案
-            if (level > 0) {
-                std::random_device rng;
-                std::mt19937 urng(rng());
-                std::shuffle(internal_neighbours.begin(), internal_neighbours.end(), urng);
-                internal_neighbours.resize(maxM_);
-                return ;
-            }
-
-            // level0 根据入度排序进行选择
-            std::vector<std::pair<tableint, int>> neighbour_with_indegree(internal_neighbours.size());
-            for (int i = 0; i < internal_neighbours.size(); i++) {
-                neighbour_with_indegree[i] = std::make_pair(internal_neighbours[i], in_degree[internal_neighbours[i]]);
-            }
-            std::sort(neighbour_with_indegree.begin(), neighbour_with_indegree.end(), [](const auto &left, const auto &right) {
-                    return left.second > right.second;
-            });
-            internal_neighbours.resize(maxM0_);
-            // std::copy(neighbour_with_indegree.begin(), neighbour_with_indegree.begin() + maxM0_, internal_neighbours.begin());
-            // std::vector<tableint>().swap(internal_neighbours);  // 清空并释放内存
-            for (int i = 0; i < neighbour_with_indegree.size(); i++) {
-                if (i < maxM0_) {
-                    internal_neighbours[i] = neighbour_with_indegree[i].first;
-                } else {
-                    in_degree[neighbour_with_indegree[i].first]--;
-                }
-            }
-        }
+        // // 方案 3，按照邻居的入度来删减, 邻居入度少的优先留下
+        // // 需要整个图提前去重
+        // {
+        //     int current_m = level == 0 ? maxM0_ : maxM_;
+        //     if ((level == 0 && internal_neighbours.size() <= maxM0_) ||
+        //         (level > 0 && internal_neighbours.size() <= maxM_)) {
+        //         // 数量少直接返回
+        //         return;
+        //     }
+        //
+        //     // 上层的采用随机选择的方案
+        //     if (level > 0) {
+        //         std::random_device rng;
+        //         std::mt19937 urng(rng());
+        //         std::shuffle(internal_neighbours.begin(), internal_neighbours.end(), urng);
+        //         internal_neighbours.resize(maxM_);
+        //         return ;
+        //     }
+        //
+        //     // level0 根据入度排序进行选择
+        //     std::vector<std::pair<tableint, int>> neighbour_with_indegree(internal_neighbours.size());
+        //     for (int i = 0; i < internal_neighbours.size(); i++) {
+        //         neighbour_with_indegree[i] = std::make_pair(internal_neighbours[i], in_degree[internal_neighbours[i]]);
+        //     }
+        //     std::sort(neighbour_with_indegree.begin(), neighbour_with_indegree.end(), [](const auto &left, const auto &right) {
+        //             return left.second > right.second;
+        //     });
+        //     internal_neighbours.resize(maxM0_);
+        //     // std::copy(neighbour_with_indegree.begin(), neighbour_with_indegree.begin() + maxM0_, internal_neighbours.begin());
+        //     // std::vector<tableint>().swap(internal_neighbours);  // 清空并释放内存
+        //     for (int i = 0; i < neighbour_with_indegree.size(); i++) {
+        //         if (i < maxM0_) {
+        //             internal_neighbours[i] = neighbour_with_indegree[i].first;
+        //         } else {
+        //             in_degree[neighbour_with_indegree[i].first]--;
+        //         }
+        //     }
+        // }
 
 //         // 方案 3：启发式选择
 //         if (internal_neighbours.size() >= 32 ) {
