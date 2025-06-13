@@ -538,9 +538,10 @@ class HierarchicalNSW : public AlgorithmInterface<dist_t> {
         tableint cur_c,
         std::priority_queue<std::pair<dist_t, tableint>, std::vector<std::pair<dist_t, tableint>>, CompareByFirst> &top_candidates,
         int level,
-        bool isUpdate) {
+        bool isUpdate,
+        bool use_heuristic2 = true) {
         size_t Mcurmax = level ? maxM_ : maxM0_;
-        getNeighborsByHeuristic2(top_candidates, M_);  // 启发式算法找到 M 个邻居
+        if (use_heuristic2) getNeighborsByHeuristic2(top_candidates, M_);  // 启发式算法找到 M 个邻居
         if (top_candidates.size() > M_)
             throw std::runtime_error("Should be not be more than M_ candidates returned by the heuristic");
 
@@ -553,6 +554,8 @@ class HierarchicalNSW : public AlgorithmInterface<dist_t> {
 
         tableint next_closest_entry_point = selectedNeighbors.back();
 
+        if (use_heuristic2)
+            //
         {
             // lock only during the update
             // because during the addition the lock for cur_c is already acquired
@@ -1171,39 +1174,77 @@ class HierarchicalNSW : public AlgorithmInterface<dist_t> {
         }
         std::cout << "enter point node: " << enterpoint_node_ << std::endl;
 
-        // 增加反向连边，
-        // 方案 1. 在构图结束后，从 id=0 开始进行反向连接
-        // 方案 2. 在构图结束后，根据入度进行排列，入度小的首先进行选择
-        // 方案 3. 在构图前根据入度进行排序，然后选择 
-        std::cout << "add reverse edges" << std::endl;
-        for (int i = 0; i < merge_graph.size(); i++) {
-            auto max_level = element_levels_[i];
-            for (int level = 0; level <= max_level; level++) {
-                linklistsizeint* ll_cur = get_linklist_by_level(i, level);
-                tableint* data_neighbours = (tableint*)(ll_cur+1);
-                for (linklistsizeint j = 0; j < *ll_cur; j++) {
-                    tableint internal_id_neighbour = data_neighbours[j];
-                    linklistsizeint* ll_cur_nei = get_linklist_by_level(internal_id_neighbour, level);
-                    tableint* data_nei = (tableint*)(ll_cur_nei+1);
+        // // 增加反向连边，
+        // // 方案 1. 在构图结束后，从 id=0 开始进行反向连接
+        // // 方案 2. 在构图结束后，根据入度进行排列，入度小的首先进行选择
+        // // 方案 3. 在构图前根据入度进行排序，然后选择 
+        // std::cout << "add reverse edges" << std::endl;
+        // for (int i = 0; i < merge_graph.size(); i++) {
+        //     auto max_level = element_levels_[i];
+        //     for (int level = 0; level <= max_level; level++) {
+        //         linklistsizeint* ll_cur = get_linklist_by_level(i, level);
+        //         tableint* data_neighbours = (tableint*)(ll_cur+1);
+        //         for (linklistsizeint j = 0; j < *ll_cur; j++) {
+        //             tableint internal_id_neighbour = data_neighbours[j];
+        //             linklistsizeint* ll_cur_nei = get_linklist_by_level(internal_id_neighbour, level);
+        //             tableint* data_nei = (tableint*)(ll_cur_nei+1);
+        //
+        //             auto m = level == 0 ? maxM0_ : maxM_;
+        //             if (*ll_cur_nei < m) {
+        //                 bool found = false;
+        //                 for (linklistsizeint k = 0; k < *ll_cur_nei; k++) {
+        //                     if (data_nei[k] == i) {
+        //                         found = true;
+        //                         break;
+        //                     }
+        //                 }
+        //
+        //                 if (!found) {
+        //                     data_nei[*ll_cur_nei] = i;
+        //                     *ll_cur_nei = *ll_cur_nei + 1;
+        //                 }
+        //             }
+        //         }
+        //     }
+        // }
 
-                    auto m = level == 0 ? maxM0_ : maxM_;
-                    if (*ll_cur_nei < m) {
-                        bool found = false;
-                        for (linklistsizeint k = 0; k < *ll_cur_nei; k++) {
-                            if (data_nei[k] == i) {
-                                found = true;
-                                break;
-                            }
-                        }
+        std::cout << "cal in degree" << std::endl;
+        std::vector<int> indices(max_elements_);
+        std::vector<int> in_degree(max_elements_, 0);
+        // 计算level0入度，并排序，从入度最小的开始选择
+        for (tableint i = 0; i < max_elements_; i++) {
+            indices[i] = i;
+            linklistsizeint* ll_cur = get_linklist0(i);
 
-                        if (!found) {
-                            data_nei[*ll_cur_nei] = i;
-                            *ll_cur_nei = *ll_cur_nei + 1;
-                        }
-                    }
-                }
+            tableint num_neighbours = *ll_cur;
+            tableint* data_neighbours = (tableint*)(ll_cur+1);
+            for (tableint j = 0; j < num_neighbours; j++) {
+                tableint internal_id_neighbour = data_neighbours[j];
+                in_degree[internal_id_neighbour]++;
             }
         }
+
+        std::cout << "sort in degree" << std::endl;
+        std::sort(indices.begin(), indices.end(),
+              [&in_degree](int i1, int i2) { return in_degree[i1] < in_degree[i2]; });
+
+        std::cout << "reconnect" << std::endl;
+        for (tableint i = 0; i < max_elements_; i++) {
+            for (int level = 0; level < element_levels_[indices[i]]; level++) {
+                std::priority_queue<std::pair<dist_t, tableint>, std::vector<std::pair<dist_t, tableint>>, CompareByFirst> top_candidates;
+                linklistsizeint* ll_cur = get_linklist0(indices[i]);
+
+                tableint num_neighbours = *ll_cur;
+                tableint* data_neighbours = (tableint*)(ll_cur+1);
+                for (tableint j = 0; j < num_neighbours; j++) {
+                    tableint internal_id_neighbour = data_neighbours[j];
+                    top_candidates.push(std::make_pair(0.0, internal_id_neighbour));
+                }
+
+                mutuallyConnectNewElement(nullptr, indices[i], top_candidates, level, false, false);
+            }
+        }
+
     }
 
     linklistsizeint *get_linklist_by_level(tableint internal_id, int level) const {
