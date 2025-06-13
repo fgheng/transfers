@@ -1400,15 +1400,15 @@ class HierarchicalNSW : public AlgorithmInterface<dist_t> {
     }
 
     // 计算某一层的入度
-    void calInDegrees(std::vector<std::vector<linklistsizeint>>& in_degree) {
-        for (int i = 0; i < max_elements_; i++) {
-            linklistsizeint* ll_cur = get_linklist_by_level(i, level);
-
-            if (ll_cur == nullptr) {
-                in_degree[i] = 0;
-            }
-        }
-    }
+    // void calInDegrees(std::vector<std::vector<linklistsizeint>>& in_degree) {
+    //     for (int i = 0; i < max_elements_; i++) {
+    //         linklistsizeint* ll_cur = get_linklist_by_level(i, level);
+    //
+    //         if (ll_cur == nullptr) {
+    //             in_degree[i] = 0;
+    //         }
+    //     }
+    // }
 
     void loadCodeBooks(const std::vector<std::vector<float>>& code_books) {
         pq_centroids_ = code_books;
