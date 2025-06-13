@@ -784,6 +784,7 @@ class HierarchicalNSW : public AlgorithmInterface<dist_t> {
         readBinaryPOD(input, offsetData_);
         readBinaryPOD(input, maxlevel_);
         readBinaryPOD(input, enterpoint_node_);
+        std::cout << "load index max level: " << maxlevel_ << std::endl;
 
         readBinaryPOD(input, maxM_);
         readBinaryPOD(input, maxM0_);
