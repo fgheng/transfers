@@ -1242,7 +1242,7 @@ class HierarchicalNSW : public AlgorithmInterface<dist_t> {
         for (tableint i = 0; i < max_elements_; i++) {
             for (int level = 0; level <= element_levels_[indices[i]]; level++) {
                 std::priority_queue<std::pair<dist_t, tableint>, std::vector<std::pair<dist_t, tableint>>, CompareByFirst> top_candidates;
-                linklistsizeint* ll_cur = get_linklist0(indices[i]);
+                linklistsizeint* ll_cur = get_linklist_by_level(indices[i], level);
 
                 tableint num_neighbours = *ll_cur;
                 tableint* data_neighbours = (tableint*)(ll_cur+1);
