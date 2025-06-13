@@ -1169,8 +1169,8 @@ class HierarchicalNSW : public AlgorithmInterface<dist_t> {
         // 获取去重后所有点在level0的入度
         std::cout << "call indegree level0" << std::endl;
         std::vector<linklistsizeint> in_degrees(max_elements_);
-        for (int i = 0; i < graph.size(); i++) {
-            auto& internal_neighbours = graph[i].internal_neighbours_;
+        for (int i = 0; i < merge_graph.size(); i++) {
+            auto& internal_neighbours = merge_graph[i].internal_neighbours_;
             for (auto& internal_neighbours_id: internal_neighbours[0]) {
                 in_degrees[internal_neighbours_id]++;
             }
