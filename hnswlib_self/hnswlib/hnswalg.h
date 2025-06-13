@@ -1310,18 +1310,22 @@ class HierarchicalNSW : public AlgorithmInterface<dist_t> {
 
 
     void mergeSelectNeighbors(tableint home, std::vector<tableint>& internal_neighbours, int level, std::vector<linklistsizeint>& in_degree) {
-        // int current_m = level == 0 ? maxM0_ : maxM_;
-        // if (internal_neighbours.size() <= current_m/2) {
-        //     return;
-        // }
 
-        // 方案 1：去重后随机选择
-        // std::sort(internal_neighbours.begin(), internal_neighbours.end());
-        // auto it = std::unique(internal_neighbours.begin(), internal_neighbours.end());
-        // internal_neighbours.erase(it, internal_neighbours.end());
-        // std::random_device rng;
-        // std::mt19937 urng(rng());
-        // std::shuffle(internal_neighbours.begin(), internal_neighbours.end(), urng);
+
+        // // 方案 1：去重后随机选择
+        // {
+        //     int current_m = level == 0 ? maxM0_ : maxM_;
+        //     if (internal_neighbours.size() <= current_m) {
+        //         return;
+        //     }
+        //     std::sort(internal_neighbours.begin(), internal_neighbours.end());
+        //     auto it = std::unique(internal_neighbours.begin(), internal_neighbours.end());
+        //     internal_neighbours.erase(it, internal_neighbours.end());
+        //     std::random_device rng;
+        //     std::mt19937 urng(rng());
+        //     std::shuffle(internal_neighbours.begin(), internal_neighbours.end(), urng);
+        //     internal_neighbours.resize(current_m);
+        // }
 
         // // 方案 2：按照 id 排序，重复多的放到最前面
         // int current_m = level == 0 ? maxM0_ : maxM_;
@@ -1355,38 +1359,40 @@ class HierarchicalNSW : public AlgorithmInterface<dist_t> {
 
         // 方案 3，按照邻居的入度来删减, 邻居入度少的优先留下
         // 需要整个图提前去重
-        int current_m = level == 0 ? maxM0_ : maxM_;
-        if ((level == 0 && internal_neighbours.size() <= maxM0_) ||
-            (level > 0 && internal_neighbours.size() <= maxM_)) {
-            // 数量少直接返回
-            return;
-        }
+        {
+            int current_m = level == 0 ? maxM0_ : maxM_;
+            if ((level == 0 && internal_neighbours.size() <= maxM0_) ||
+                (level > 0 && internal_neighbours.size() <= maxM_)) {
+                // 数量少直接返回
+                return;
+            }
 
-        // 上层的采用随机选择的方案
-        if (level > 0) {
-            std::random_device rng;
-            std::mt19937 urng(rng());
-            std::shuffle(internal_neighbours.begin(), internal_neighbours.end(), urng);
-            internal_neighbours.resize(maxM_);
-            return ;
-        }
+            // 上层的采用随机选择的方案
+            if (level > 0) {
+                std::random_device rng;
+                std::mt19937 urng(rng());
+                std::shuffle(internal_neighbours.begin(), internal_neighbours.end(), urng);
+                internal_neighbours.resize(maxM_);
+                return ;
+            }
 
-        // level0 根据入度排序进行选择
-        std::vector<std::pair<tableint, int>> neighbour_with_indegree(internal_neighbours.size());
-        for (int i = 0; i < internal_neighbours.size(); i++) {
-            neighbour_with_indegree[i] = std::make_pair(internal_neighbours[i], in_degree[internal_neighbours[i]]);
-        }
-        std::sort(neighbour_with_indegree.begin(), neighbour_with_indegree.end(), [](const auto &left, const auto &right) {
-                return left.second > right.second;
-        });
-        internal_neighbours.resize(maxM0_);
-        // std::copy(neighbour_with_indegree.begin(), neighbour_with_indegree.begin() + maxM0_, internal_neighbours.begin());
-        // std::vector<tableint>().swap(internal_neighbours);  // 清空并释放内存
-        for (int i = 0; i < neighbour_with_indegree.size(); i++) {
-            if (i < maxM0_) {
-                internal_neighbours[i] = neighbour_with_indegree[i].first;
-            } else {
-                in_degree[neighbour_with_indegree[i].first]--;
+            // level0 根据入度排序进行选择
+            std::vector<std::pair<tableint, int>> neighbour_with_indegree(internal_neighbours.size());
+            for (int i = 0; i < internal_neighbours.size(); i++) {
+                neighbour_with_indegree[i] = std::make_pair(internal_neighbours[i], in_degree[internal_neighbours[i]]);
+            }
+            std::sort(neighbour_with_indegree.begin(), neighbour_with_indegree.end(), [](const auto &left, const auto &right) {
+                    return left.second > right.second;
+            });
+            internal_neighbours.resize(maxM0_);
+            // std::copy(neighbour_with_indegree.begin(), neighbour_with_indegree.begin() + maxM0_, internal_neighbours.begin());
+            // std::vector<tableint>().swap(internal_neighbours);  // 清空并释放内存
+            for (int i = 0; i < neighbour_with_indegree.size(); i++) {
+                if (i < maxM0_) {
+                    internal_neighbours[i] = neighbour_with_indegree[i].first;
+                } else {
+                    in_degree[neighbour_with_indegree[i].first]--;
+                }
             }
         }
 
