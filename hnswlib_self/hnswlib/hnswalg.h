@@ -615,6 +615,7 @@ class HierarchicalNSW : public AlgorithmInterface<dist_t> {
                 }
             }
 
+            if (use_heuristic2) {
             // If cur_c is already present in the neighboring connections of `selectedNeighbors[idx]` then no need to modify any connections or run the heuristics.
             if (!is_cur_c_present) {
                 if (sz_link_list_other < Mcurmax) { // 如果邻居的邻居数量少于 M 个，那么直接将当前点插入到邻居的邻居列表中，构成双向图
@@ -660,6 +661,15 @@ class HierarchicalNSW : public AlgorithmInterface<dist_t> {
                     } */
                 }
             }
+
+            } else {
+                if (sz_link_list_other < Mcurmax) { // 如果邻居的邻居数量少于 M 个，那么直接将当前点插入到邻居的邻居列表中，构成双向图
+                    data[sz_link_list_other] = cur_c;
+                    setListCount(ll_other, sz_link_list_other + 1);
+                }
+
+            }
+
         }
 
         return next_closest_entry_point;
@@ -1229,7 +1239,7 @@ class HierarchicalNSW : public AlgorithmInterface<dist_t> {
               [&in_degree](int i1, int i2) { return in_degree[i1] < in_degree[i2]; });
 
         std::cout << "reconnect" << std::endl;
-        for (tableint i = 0; i < max_elements_; i++) {
+        for (tableint i = 0; i <= max_elements_; i++) {
             for (int level = 0; level < element_levels_[indices[i]]; level++) {
                 std::priority_queue<std::pair<dist_t, tableint>, std::vector<std::pair<dist_t, tableint>>, CompareByFirst> top_candidates;
                 linklistsizeint* ll_cur = get_linklist0(indices[i]);
