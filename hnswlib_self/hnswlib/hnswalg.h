@@ -1307,14 +1307,22 @@ class HierarchicalNSW : public AlgorithmInterface<dist_t> {
         // std::shuffle(internal_neighbours.begin(), internal_neighbours.end(), urng);
 
         // 方案 2：按照 id 排序，重复多的放到最前面
+        int current_m = level == 0 ? maxM0_ : maxM_;
         if ((level == 0 && internal_neighbours.size() < maxM0_) ||
             (level > 0 && internal_neighbours.size() < maxM_)) {
+            // 数量少直接去重
+            std::sort(internal_neighbours.begin(), internal_neighbours.end());
+            auto it = std::unique(internal_neighbours.begin(), internal_neighbours.end());
+            internal_neighbours.erase(it, internal_neighbours.end());
             return;
         }
+
+        // 统计重复数量
         std::unordered_map<tableint, int> count_map;
         for (auto& internal_id : internal_neighbours) {
             count_map[internal_id]++;
         }
+        // 根据数量排序
         std::vector<std::pair<tableint, int>> count_neighbours(count_map.begin(), count_map.end());
         std::sort(count_neighbours.begin(), count_neighbours.end(), [](const auto &left, const auto &right) {
             return left.second > right.second;
@@ -1322,11 +1330,25 @@ class HierarchicalNSW : public AlgorithmInterface<dist_t> {
 
         std::vector<tableint>().swap(internal_neighbours);  // 清空并释放内存
         internal_neighbours.push_back(count_neighbours[0].first);  // 重复最多的放到最前面
-        for (int i = 1; i < count_neighbours.size(); i++) {
+        for (int i = 1; i < count_neighbours.size() && internal_neighbours.size() < current_m; i++) {
             if (count_neighbours[i].first != count_neighbours[i-1].first) {
                 internal_neighbours.push_back(count_neighbours[i].first);
             }
         }
+
+        // // 方案 4，按照邻居的入度来删减, 邻居入度少的优先留下
+        // std::vector<int> in_degree(max_elements_, 0);
+        // // 计算level0入度，并排序，从入度最小的开始选择
+        // for (tableint i = 0; i < max_elements_; i++) {
+        //     linklistsizeint* ll_cur = get_linklist0(i);
+        //
+        //     tableint num_neighbours = *ll_cur;
+        //     tableint* data_neighbours = (tableint*)(ll_cur+1);
+        //     for (tableint j = 0; j < num_neighbours; j++) {
+        //         tableint internal_id_neighbour = data_neighbours[j];
+        //         in_degree[internal_id_neighbour]++;
+        //     }
+        // }
 
 //         // 方案 3：启发式选择
 //         if (internal_neighbours.size() >= 32 ) {
