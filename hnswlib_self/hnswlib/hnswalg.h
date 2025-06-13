@@ -1109,6 +1109,33 @@ class HierarchicalNSW : public AlgorithmInterface<dist_t> {
             }
         }
 
+        std::cout << "reconnect" << std::endl;
+        for (int i = 0; i < merge_graph.size(); i++) {
+            auto external_label = merge_graph[i].external_label_;
+            auto& external_neighbours = merge_graph[i].external_neighbours_;
+            for (int level = 0; level <= merge_graph[i].max_level_; level++) {
+                auto& external_neighbours_level = external_neighbours[level];
+                for (int j = 0; j < external_neighbours_level.size(); j++) {
+                    auto neighbour_external_id = external_neighbours_level[j];
+                    auto neighbour_internal_id = external_label_to_internal_id.find(neighbour_external_id);
+
+                    auto& neighbour_node = merge_graph[neighbour_internal_id->second];
+                    auto& neighbour_node_external_neighbours_level = neighbour_node.external_neighbours_[level];
+                    bool update = true;
+                    for (int k = 0; k < neighbour_node_external_neighbours_level.size(); k++) {
+                        if (neighbour_node_external_neighbours_level[k] == external_label) {
+                            update = false;
+                            break;
+                        }
+                    }
+
+                    if (update) {
+                        neighbour_node_external_neighbours_level.push_back(external_label);
+                    }
+                }
+            }
+        }
+
 
         std::cout << "map internal id" << std::endl;
         for (auto& node: merge_graph) {
@@ -1218,43 +1245,42 @@ class HierarchicalNSW : public AlgorithmInterface<dist_t> {
         //     }
         // }
 
-        std::cout << "cal in degree" << std::endl;
-        std::vector<int> indices(max_elements_);
-        std::vector<int> in_degree(max_elements_, 0);
-        // 计算level0入度，并排序，从入度最小的开始选择
-        for (tableint i = 0; i < max_elements_; i++) {
-            indices[i] = i;
-            linklistsizeint* ll_cur = get_linklist0(i);
-
-            tableint num_neighbours = *ll_cur;
-            tableint* data_neighbours = (tableint*)(ll_cur+1);
-            for (tableint j = 0; j < num_neighbours; j++) {
-                tableint internal_id_neighbour = data_neighbours[j];
-                in_degree[internal_id_neighbour]++;
-            }
-        }
-
-        std::cout << "sort in degree" << std::endl;
-        std::sort(indices.begin(), indices.end(),
-              [&in_degree](int i1, int i2) { return in_degree[i1] < in_degree[i2]; });
-
-        std::cout << "reconnect" << std::endl;
-        for (tableint i = 0; i < max_elements_; i++) {
-            for (int level = 0; level <= element_levels_[indices[i]]; level++) {
-                std::priority_queue<std::pair<dist_t, tableint>, std::vector<std::pair<dist_t, tableint>>, CompareByFirst> top_candidates;
-                linklistsizeint* ll_cur = get_linklist_by_level(indices[i], level);
-
-                tableint num_neighbours = *ll_cur;
-                tableint* data_neighbours = (tableint*)(ll_cur+1);
-                for (tableint j = 0; j < num_neighbours; j++) {
-                    tableint internal_id_neighbour = data_neighbours[j];
-                    top_candidates.push(std::make_pair(0.0, internal_id_neighbour));
-                }
-
-                mutuallyConnectNewElement(nullptr, indices[i], top_candidates, level, false, false);
-            }
-        }
-
+        // std::cout << "cal in degree" << std::endl;
+        // std::vector<int> indices(max_elements_);
+        // std::vector<int> in_degree(max_elements_, 0);
+        // // 计算level0入度，并排序，从入度最小的开始选择
+        // for (tableint i = 0; i < max_elements_; i++) {
+        //     indices[i] = i;
+        //     linklistsizeint* ll_cur = get_linklist0(i);
+        //
+        //     tableint num_neighbours = *ll_cur;
+        //     tableint* data_neighbours = (tableint*)(ll_cur+1);
+        //     for (tableint j = 0; j < num_neighbours; j++) {
+        //         tableint internal_id_neighbour = data_neighbours[j];
+        //         in_degree[internal_id_neighbour]++;
+        //     }
+        // }
+        //
+        // std::cout << "sort in degree" << std::endl;
+        // std::sort(indices.begin(), indices.end(),
+        //       [&in_degree](int i1, int i2) { return in_degree[i1] < in_degree[i2]; });
+        //
+        // std::cout << "reconnect" << std::endl;
+        // for (tableint i = 0; i < max_elements_; i++) {
+        //     for (int level = 0; level <= element_levels_[indices[i]]; level++) {
+        //         std::priority_queue<std::pair<dist_t, tableint>, std::vector<std::pair<dist_t, tableint>>, CompareByFirst> top_candidates;
+        //         linklistsizeint* ll_cur = get_linklist_by_level(indices[i], level);
+        //
+        //         tableint num_neighbours = *ll_cur;
+        //         tableint* data_neighbours = (tableint*)(ll_cur+1);
+        //         for (tableint j = 0; j < num_neighbours; j++) {
+        //             tableint internal_id_neighbour = data_neighbours[j];
+        //             top_candidates.push(std::make_pair(0.0, internal_id_neighbour));
+        //         }
+        //
+        //         mutuallyConnectNewElement(nullptr, indices[i], top_candidates, level, false, false);
+        //     }
+        // }
     }
 
     linklistsizeint *get_linklist_by_level(tableint internal_id, int level) const {
