@@ -1380,10 +1380,14 @@ class HierarchicalNSW : public AlgorithmInterface<dist_t> {
                 return left.second > right.second;
         });
         internal_neighbours.resize(maxM0_);
-        std::copy(neighbour_with_indegree.begin(), neighbour_with_indegree.begin() + maxM0_, internal_neighbours.begin());
+        // std::copy(neighbour_with_indegree.begin(), neighbour_with_indegree.begin() + maxM0_, internal_neighbours.begin());
         // std::vector<tableint>().swap(internal_neighbours);  // 清空并释放内存
-        for (int i = maxM0_; i < neighbour_with_indegree.size(); i++) {
-            in_degree[neighbour_with_indegree[i].first]--;
+        for (int i = 0; i < neighbour_with_indegree.size(); i++) {
+            if (i < maxM0_) {
+                internal_neighbours[i] = neighbour_with_indegree[i].first;
+            } else {
+                in_degree[neighbour_with_indegree[i].first]--;
+            }
         }
 
 //         // 方案 3：启发式选择
