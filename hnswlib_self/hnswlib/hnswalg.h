@@ -1239,8 +1239,8 @@ class HierarchicalNSW : public AlgorithmInterface<dist_t> {
               [&in_degree](int i1, int i2) { return in_degree[i1] < in_degree[i2]; });
 
         std::cout << "reconnect" << std::endl;
-        for (tableint i = 0; i <= max_elements_; i++) {
-            for (int level = 0; level < element_levels_[indices[i]]; level++) {
+        for (tableint i = 0; i < max_elements_; i++) {
+            for (int level = 0; level <= element_levels_[indices[i]]; level++) {
                 std::priority_queue<std::pair<dist_t, tableint>, std::vector<std::pair<dist_t, tableint>>, CompareByFirst> top_candidates;
                 linklistsizeint* ll_cur = get_linklist0(indices[i]);
 
