@@ -1119,32 +1119,32 @@ class HierarchicalNSW : public AlgorithmInterface<dist_t> {
         }
 
         // 添加反向边
-        std::cout << "reconnect" << std::endl;
-        for (int i = 0; i < merge_graph.size(); i++) {
-            auto external_label = merge_graph[i].external_label_;
-            auto& external_neighbours = merge_graph[i].external_neighbours_;
-            for (int level = 0; level <= merge_graph[i].max_level_; level++) {
-                auto& external_neighbours_level = external_neighbours[level];
-                for (int j = 0; j < external_neighbours_level.size(); j++) {
-                    auto neighbour_external_id = external_neighbours_level[j];
-                    auto neighbour_internal_id = external_label_to_internal_id.find(neighbour_external_id);
-
-                    auto& neighbour_node = merge_graph[neighbour_internal_id->second];
-                    auto& neighbour_node_external_neighbours_level = neighbour_node.external_neighbours_[level];
-                    bool update = true;
-                    for (int k = 0; k < neighbour_node_external_neighbours_level.size(); k++) {
-                        if (neighbour_node_external_neighbours_level[k] == external_label) {
-                            update = false;
-                            break;
-                        }
-                    }
-
-                    if (update) {
-                        neighbour_node_external_neighbours_level.push_back(external_label);
-                    }
-                }
-            }
-        }
+        // std::cout << "reconnect" << std::endl;
+        // for (int i = 0; i < merge_graph.size(); i++) {
+        //     auto external_label = merge_graph[i].external_label_;
+        //     auto& external_neighbours = merge_graph[i].external_neighbours_;
+        //     for (int level = 0; level <= merge_graph[i].max_level_; level++) {
+        //         auto& external_neighbours_level = external_neighbours[level];
+        //         for (int j = 0; j < external_neighbours_level.size(); j++) {
+        //             auto neighbour_external_id = external_neighbours_level[j];
+        //             auto neighbour_internal_id = external_label_to_internal_id.find(neighbour_external_id);
+        //
+        //             auto& neighbour_node = merge_graph[neighbour_internal_id->second];
+        //             auto& neighbour_node_external_neighbours_level = neighbour_node.external_neighbours_[level];
+        //             bool update = true;
+        //             for (int k = 0; k < neighbour_node_external_neighbours_level.size(); k++) {
+        //                 if (neighbour_node_external_neighbours_level[k] == external_label) {
+        //                     update = false;
+        //                     break;
+        //                 }
+        //             }
+        //
+        //             if (update) {
+        //                 neighbour_node_external_neighbours_level.push_back(external_label);
+        //             }
+        //         }
+        //     }
+        // }
 
 
         // 映射内部 id
